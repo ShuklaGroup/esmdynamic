@@ -3,9 +3,10 @@ from pathlib import Path
 import torch
 
 from esm.esmfold.v1.esmfold import ESMFold
+from esm.esmdynamic.esmdynamic import ESMDynamic
 
 
-def _load_model(model_name):
+def _load_model(model_name, model_object=ESMFold):
     if model_name.endswith(".pt"):  # local, treat as filepath
         model_path = Path(model_name)
         model_data = torch.load(str(model_path), map_location="cpu")
@@ -15,7 +16,7 @@ def _load_model(model_name):
 
     cfg = model_data["cfg"]["model"]
     model_state = model_data["model"]
-    model = ESMFold(esmfold_config=cfg)
+    model = model_object(esmfold_config=cfg)
 
     expected_keys = set(model.state_dict().keys())
     found_keys = set(model_state.keys())
@@ -52,3 +53,11 @@ def esmfold_v1():
     protein sequence.
     """
     return _load_model("esmfold_3B_v1")
+
+
+def esmdyamic_v0():
+    """
+    Fine-tuned model for dynamic contact prediction based on esmfold_v1.
+    """
+    # Load original parameters since I haven't run any training yet
+    return _load_model("esmfold_3B_v1", model_object=ESMDynamic)
