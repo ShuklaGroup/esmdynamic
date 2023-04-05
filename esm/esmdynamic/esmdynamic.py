@@ -20,7 +20,7 @@ from esm.esmfold.v1.categorical_mixture import categorical_lddt
 from esm.esmfold.v1.misc import (
     batch_encode_sequences,
     collate_dense_tensors,
-#     output_to_pdb,
+    #     output_to_pdb,
 )
 
 from esm.esmfold.v1.esmfold import ESMFold
@@ -46,6 +46,9 @@ class ESMDynamicConfig:
 class ESMDynamic(nn.Module):
     def __init__(self, esmdynamic_config=None, **kwargs):
         super().__init__()
+
+        self.prob_bins_vals = torch.linspace(0, 1, 50).unsqueeze(1)
+        self.rmsd_vals = rmsd_vals.unsqueeze(1)
 
         esmdynamic_config = esmdynamic_config if esmdynamic_config else OmegaConf.structured(ESMDynamicConfig(**kwargs))
         self.cfg = esmdynamic_config
@@ -145,29 +148,33 @@ class ESMDynamic(nn.Module):
         dynamic_contact_prob = self.rearrange_pair_reverse(dynamic_contact_prob)
         structure['dynamic_module_logits'] = dynamic_module_output
         structure['dynamic_contact_prob'] = dynamic_contact_prob
-        structure['dynamic_contact_pred'] = torch.where(dynamic_contact_prob > 0.5, 1, 0).long()
+        structure['dynamic_contact_pred'] = torch.where(dynamic_contact_prob > 0.5, 1, 0).long()  # 0.5 threshold
 
         # Predict conditional probabilities
         cond_probability_input = self.cond_prob_transition(dynamic_contact_prob) + \
                                  dynamic_module_output['s_z']
         conditional_probabilities = self.resnet_conditional_prob(self.rearrange_pair(cond_probability_input))
-        conditional_probabilities = self.rearrange_pair_reverse(conditional_probabilities)
+        structure['conditional_prob_prob'] = self.rearrange_pair_reverse(conditional_probabilities)
+
+        #  "Categorical mixture" definition for the predictions
+        structure['conditional_prob_pred'] = (structure['conditional_prob_prob'] @ self.prob_bins_vals).squeeze(-1)
+
         # We set the entries that don't correspond to dynamic contacts to NaN because negative predictions don't have a
         # defined conditional probability.
         # In the loss function, we do not consider the conditional probabilities for residue-residue distances that are
         # not classified as dynamic contacts.
-        # We take the argmax and multiply by .02 because the conditional probability values are binned from [0, 1] in
-        # 50 bins of width .02.
+        # Bins will be used with a cross entropy loss function
         structure['conditional_prob_bins'] = torch.where(dynamic_contact_prob > 0.5, 1, torch.nan) * \
-                                        torch.unsqueeze(torch.argmax(conditional_probabilities, dim=3), dim=3)
-        structure['conditional_prob'] = structure['conditional_prob_bins'] * .02
+                                    torch.unsqueeze(torch.argmax(structure['conditional_prob_prob'], dim=3), dim=3)
 
-        # Compute predicted RMSD
-        structure['rmsd_bins'] = self.rearrange_seq_reverse(
+        # Predict RMSD
+        structure['rmsd_prob'] = self.rearrange_seq_reverse(
             self.rmsd_dilated_convnet(self.rearrange_seq(dynamic_module_output['s_s']))
         )
-        # Approximate RMSD
-        structure['rmsd'] = torch.unsqueeze(rmsd_vals[torch.argmax(structure['rmsd_bins'], dim=2)], dim=2)
+        # Bins will be used in a cross entropy loss function
+        structure['rmsd_bins'] = torch.unsqueeze(torch.argmax(structure['rmsd_prob'], dim=2), dim=2)
+        # Approximate RMSD ("categorical mixture")
+        structure['rmsd_pred'] = (structure['rmsd_prob'] @ self.rmsd_vals).squeeze(-1)
 
         return structure
 
