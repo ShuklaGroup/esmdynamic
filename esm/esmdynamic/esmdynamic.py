@@ -26,7 +26,7 @@ from esm.esmfold.v1.misc import (
 from esm.esmfold.v1.esmfold import ESMFold
 from esm.esmfold.v1.trunk import FoldingTrunkConfig, StructureModuleConfig
 
-from utils import rmsd_vals
+from utils import rmsd_vals, prob_vals
 from dynamic_module import DynamicModule, DynamicModuleConfig
 from resnet import ResNet, SymmetricResNet, ResNetConfig
 from dilated_convnet import DilatedConvNet, DilatedConvNetConfig
@@ -47,7 +47,7 @@ class ESMDynamic(nn.Module):
     def __init__(self, esmdynamic_config=None, **kwargs):
         super().__init__()
 
-        self.prob_bins_vals = torch.linspace(0, 1, 50).unsqueeze(1)
+        self.prob_bins_vals = prob_vals.unsqueeze(1)
         self.rmsd_vals = rmsd_vals.unsqueeze(1)
 
         esmdynamic_config = esmdynamic_config if esmdynamic_config else OmegaConf.structured(ESMDynamicConfig(**kwargs))
@@ -111,7 +111,7 @@ class ESMDynamic(nn.Module):
             residx: T.Optional[torch.Tensor] = None,
             masking_pattern: T.Optional[torch.Tensor] = None,
             num_recycles: T.Optional[int] = None,
-            precomputed: T.Optional[dict] = None,
+            precomputed: T.Optional[dict] = None,  # Folding trunk output --> Only used at training time
     ):
         with torch.no_grad():
             if precomputed is None:
@@ -142,19 +142,22 @@ class ESMDynamic(nn.Module):
                                                     no_recycles=num_recycles
                                                     )
         # dynamic_module_output += dynamic_module_output.T  # Symmetrize the output
+        structure['dynamic_module_output'] = dynamic_module_output
 
         # Predict dynamic contact probability from pair features
-        dynamic_contact_prob = self.resnet_dynamic_contacts(self.rearrange_pair(dynamic_module_output['s_z']))
-        dynamic_contact_prob = self.rearrange_pair_reverse(dynamic_contact_prob)
-        structure['dynamic_module_logits'] = dynamic_module_output
+        dynamic_contact_logits = self.resnet_dynamic_contacts(self.rearrange_pair(dynamic_module_output['s_z']))
+        dynamic_contact_logits = self.rearrange_pair_reverse(dynamic_contact_logits)
+        structure['dynamic_contact_logits'] = dynamic_contact_logits
+        dynamic_contact_prob = nn.functional.sigmoid(dynamic_contact_logits)
         structure['dynamic_contact_prob'] = dynamic_contact_prob
         structure['dynamic_contact_pred'] = torch.where(dynamic_contact_prob > 0.5, 1, 0).long()  # 0.5 threshold
 
         # Predict conditional probabilities
-        cond_probability_input = self.cond_prob_transition(dynamic_contact_prob) + \
-                                 dynamic_module_output['s_z']
+        cond_probability_input = self.cond_prob_transition(dynamic_contact_logits) + dynamic_module_output['s_z']
         conditional_probabilities = self.resnet_conditional_prob(self.rearrange_pair(cond_probability_input))
-        structure['conditional_prob_prob'] = self.rearrange_pair_reverse(conditional_probabilities)
+        conditional_prob_logits = self.rearrange_pair_reverse(conditional_probabilities)
+        structure['conditional_prob_logits'] = conditional_prob_logits
+        structure['conditional_prob_prob'] = nn.functional.softmax(conditional_prob_logits, dim=-1)
 
         #  "Categorical mixture" definition for the predictions
         structure['conditional_prob_pred'] = (structure['conditional_prob_prob'] @ self.prob_bins_vals).squeeze(-1)
@@ -163,16 +166,20 @@ class ESMDynamic(nn.Module):
         # defined conditional probability.
         # In the loss function, we do not consider the conditional probabilities for residue-residue distances that are
         # not classified as dynamic contacts.
-        # Bins will be used with a cross entropy loss function
-        structure['conditional_prob_bins'] = torch.where(dynamic_contact_prob > 0.5, 1, torch.nan) * \
-                                    torch.unsqueeze(torch.argmax(structure['conditional_prob_prob'], dim=3), dim=3)
+        # Bins will be used with a cross entropy loss function --> Use ignore indices instead
+        # structure['conditional_prob_bins'] = torch.where(dynamic_contact_prob > 0.5, 1, torch.nan) * \
+        #                                      torch.unsqueeze(
+        #                                          torch.argmax(structure['conditional_prob_prob'], dim=3),
+        #                                          dim=3
+        #                                      )
 
         # Predict RMSD
-        structure['rmsd_prob'] = self.rearrange_seq_reverse(
+        structure['rmsd_logit'] = self.rearrange_seq_reverse(
             self.rmsd_dilated_convnet(self.rearrange_seq(dynamic_module_output['s_s']))
         )
-        # Bins will be used in a cross entropy loss function
-        structure['rmsd_bins'] = torch.unsqueeze(torch.argmax(structure['rmsd_prob'], dim=2), dim=2)
+        structure['rmsd_prob'] = nn.functional.softmax(structure['rmsd_logit'], dim=-1)
+        # Bins will be used in a cross entropy loss function --> Use logits
+        # structure['rmsd_bins'] = torch.unsqueeze(torch.argmax(structure['rmsd_prob'], dim=2), dim=2)
         # Approximate RMSD ("categorical mixture")
         structure['rmsd_pred'] = (structure['rmsd_prob'] @ self.rmsd_vals).squeeze(-1)
 

@@ -86,12 +86,12 @@ class DilatedConvNet(nn.Module):
 
         self.prediction_layer = nn.Conv1d(out_channels, num_classes, kernel_size=1, padding='valid')
 
-        assert (num_classes >= 1)
-        if num_classes > 2:
-            self.output_activation = nn.Softmax(dim=1)
-        elif num_classes <= 2:
-            self.cfg.num_classes = 1
-            self.output_activation = nn.Sigmoid()  # Eliminate redundant class
+        # assert (num_classes >= 1)
+        # if num_classes > 2:
+        #     self.output_activation = nn.Softmax(dim=1)
+        # elif num_classes <= 2:
+        #     self.cfg.num_classes = 1
+        #     self.output_activation = nn.Sigmoid()  # Eliminate redundant class
 
     def forward(self, x):
         for layer in self.dim_reduction_modules:
@@ -99,5 +99,5 @@ class DilatedConvNet(nn.Module):
         for layer in self.dilated_conv_modules:
             x = layer(x)
         x = self.prediction_layer(x)
-        x = self.output_activation(x)
+        # x = self.output_activation(x) --> Computed afterwards
         return x

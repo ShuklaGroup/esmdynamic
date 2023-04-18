@@ -1,5 +1,5 @@
 """
-Utils for ESMDynamic
+Utils and constants for ESMDynamic model.
 """
 
 import torch
@@ -82,3 +82,5 @@ rmsd_bin_boundaries = torch.tensor(
 rmsd_vals = torch.zeros_like(rmsd_bin_boundaries)
 rmsd_vals[:-1] = (rmsd_bin_boundaries[:-1] + rmsd_bin_boundaries[1:]) / 2  # Center of bin
 rmsd_vals[-1] = rmsd_bin_boundaries[-1]
+
+prob_vals = torch.linspace(0, 100, 50)

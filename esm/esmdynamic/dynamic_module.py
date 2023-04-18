@@ -8,7 +8,7 @@ from contextlib import ExitStack
 
 import torch
 import torch.nn as nn
-from esmfold.v1.trunk import RelativePosition
+from esm.esmfold.v1.trunk import RelativePosition
 
 # from openfold.model.structure_module import StructureModule
 

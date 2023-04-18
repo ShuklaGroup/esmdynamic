@@ -100,18 +100,18 @@ class ResNet(nn.Module):
         out_channels = layer_dimensions[-1]
         self.prediction_layer = nn.Conv2d(out_channels, num_classes, kernel_size=1, padding='same')
 
-        assert (num_classes >= 1)
-        if num_classes > 2:
-            self.output_activation = nn.Softmax(dim=-1)
-        elif num_classes <= 2:
-            self.cfg.num_classes = 1
-            self.output_activation = nn.Sigmoid()  # Eliminate redundant class
+        # assert (num_classes >= 1)
+        # if num_classes > 2:
+        #     self.output_activation = nn.Softmax(dim=-1)
+        # elif num_classes <= 2:
+        #     self.cfg.num_classes = 1
+        #     self.output_activation = nn.Sigmoid()  # Eliminate redundant class
 
     def forward(self, x):
         for layer in self.layers:
             x = layer(x)
         x = self.prediction_layer(x)
-        x = self.output_activation(x)
+        # x = self.output_activation(x) --> Computed afterwards
 
         return x
 
@@ -128,6 +128,6 @@ class SymmetricResNet(ResNet):
 
         x += x.clone().mT  # Enforce symmetric output
         x /= 2  # Normalize from previous addition
-        x = self.output_activation(x)
+        # x = self.output_activation(x) --> Computed afterwards
 
         return x
