@@ -4,64 +4,8 @@ Loss function for ESMDynamic model.
 
 import torch
 from torch import nn
-from torchvision.ops import focal_loss
-from utils import rmsd_vals, prob_vals
-
-
-# def focal_loss(
-#         inputs: torch.Tensor,
-#         targets: torch.Tensor,
-#         alpha: float = 0.99,
-#         gamma: float = 2,
-#         reduction: str = "none",
-# ) -> torch.Tensor:
-#     """
-#     This function has been adapted from torchvision.ops.focal_loss.sigmoid_focal_loss().
-#     The sigmoid preprocessing step has been removed since it is performed by the model already.
-#
-#     Docs from original function follow:
-#
-#     Loss used in RetinaNet for dense detection: https://arxiv.org/abs/1708.02002.
-#
-#     Args:
-#         inputs (Tensor): A float tensor of arbitrary shape.
-#                 The predictions for each example.
-#         targets (Tensor): A float tensor with the same shape as inputs. Stores the binary
-#                 classification label for each element in inputs
-#                 (0 for the negative class and 1 for the positive class).
-#         alpha (float): Weighting factor in range (0,1) to balance
-#                 positive vs negative examples or -1 for ignore. Default: ``0.25``.
-#         gamma (float): Exponent of the modulating factor (1 - p_t) to
-#                 balance easy vs hard examples. Default: ``2``.
-#         reduction (string): ``'none'`` | ``'mean'`` | ``'sum'``
-#                 ``'none'``: No reduction will be applied to the output.
-#                 ``'mean'``: The output will be averaged.
-#                 ``'sum'``: The output will be summed. Default: ``'none'``.
-#     Returns:
-#         Loss tensor with the reduction option applied.
-#     """
-#     Original implementation from https://github.com/facebookresearch/fvcore/blob/master/fvcore/nn/focal_loss.py
-#     p = inputs
-#     ce_loss = F.binary_cross_entropy(inputs, targets, reduction="none")
-#     p_t = p * targets + (1 - p) * (1 - targets)
-#     loss = ce_loss * ((1 - p_t) ** gamma)
-#
-#     if alpha >= 0:
-#         alpha_t = alpha * targets + (1 - alpha) * (1 - targets)
-#         loss = alpha_t * loss
-#
-#     # Check reduction option and return loss accordingly
-#     if reduction == "none":
-#         pass
-#     elif reduction == "mean":
-#         loss = loss.mean()
-#     elif reduction == "sum":
-#         loss = loss.sum()
-#     else:
-#         raise ValueError(
-#             f"Invalid Value for arg 'reduction': '{reduction} \n Supported reduction modes: 'none', 'mean', 'sum'"
-#         )
-#     return loss
+from torchvision.ops.focal_loss import sigmoid_focal_loss
+from .utils import rmsd_vals
 
 
 def binned_cross_entropy(
@@ -71,8 +15,7 @@ def binned_cross_entropy(
         ignore_indices: torch.Tensor = None,
         reduction: str = "none",
 ) -> torch.Tensor:
-    """
-    Cross entropy loss where incorrectly labeled samples are weighted by how far off the prediction was.
+    """Cross entropy loss where incorrectly labeled samples are weighted by how far off the prediction was.
 
     Args:
         inputs (Tensor): A float tensor of arbitrary shape.
@@ -91,9 +34,9 @@ def binned_cross_entropy(
     """
     ce_loss = nn.functional.cross_entropy(inputs, targets, reduction="none")  # Check output
     p = nn.functional.softmax(inputs, dim=-1)  # Check shape is correct
-    bin_values = bin_vals[torch.argmax(p)]  # Figure out dim for argmax
-    target_bin_values = bin_vals[targets]  # Check output
-    loss = torch.abs(bin_values - target_bin_values) * ce_loss  # Ensure shapes are correct
+    bin_values = bin_vals[torch.argmax(p, dim=1)]  # Figure out dim for argmax
+    target_bin_values = bin_vals[torch.argmax(targets, dim=1)]  # Check output
+    loss = torch.abs(bin_values - target_bin_values) / len(bin_vals) * ce_loss  # Ensure shapes are correct
     # Check reduction option and return loss accordingly
     if reduction == "none":
         pass
@@ -109,5 +52,32 @@ def binned_cross_entropy(
     return loss
 
 
-def full_form_loss(inputs, target):
-    pass
+def full_form_loss(
+        inputs,
+        target,
+        alpha=0.25,
+        gamma=2,
+        reduction="none",
+) -> torch.Tensor:
+    """Loss for ESMDynamic model.
+    """
+    dynamic_contact_logits = inputs['dynamic_contact_logits']
+    dynamic_contacts_target = target['dynamic_contacts']
+    loss_dyn_contact = sigmoid_focal_loss(
+        dynamic_contact_logits,
+        dynamic_contacts_target,
+        alpha=alpha,
+        gamma=gamma,
+        reduction=reduction,
+    )
+
+    rmsd_logits = inputs['rmsd_logits']
+    rmsd_target = target['rmsd']
+    loss_rmsd = binned_cross_entropy(
+        rmsd_logits,
+        rmsd_target,
+        bin_vals=rmsd_vals,
+        reduction=reduction,
+    )
+
+    return loss_rmsd + loss_dyn_contact

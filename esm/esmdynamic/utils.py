@@ -73,14 +73,15 @@ def crop_pad_trunk_output(trunk_output, start_res, padded_length):
 
 rmsd_bin_boundaries = torch.tensor(
     [
-        0, 0.2, 0.4, 0.6, 0.8, 1., 1.2, 1.4, 1.6, 1.8, 2.,
+        0.2, 0.4, 0.6, 0.8, 1., 1.2, 1.4, 1.6, 1.8, 2.,
         2.2, 2.4, 2.6, 2.8, 3., 3.2, 3.4, 3.6, 3.8, 4.,
         5., 6., 7., 8., 9., 10., 15., 20., 25., 30., 35.,
     ]
 )
 
-rmsd_vals = torch.zeros_like(rmsd_bin_boundaries)
-rmsd_vals[:-1] = (rmsd_bin_boundaries[:-1] + rmsd_bin_boundaries[1:]) / 2  # Center of bin
+rmsd_vals = torch.zeros(len(rmsd_bin_boundaries) + 1)
+rmsd_vals[0] = (0 + rmsd_bin_boundaries[0]) / 2
+rmsd_vals[1:-1] = (rmsd_bin_boundaries[:-1] + rmsd_bin_boundaries[1:]) / 2  # Center of bin
 rmsd_vals[-1] = rmsd_bin_boundaries[-1]
 
-prob_vals = torch.linspace(0, 100, 50)
+# prob_vals = torch.linspace(0, 100, 50)

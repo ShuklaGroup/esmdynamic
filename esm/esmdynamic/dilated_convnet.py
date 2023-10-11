@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import torch.nn as nn
 
-from utils import rmsd_bin_boundaries
+from .utils import rmsd_vals
 
 
 class DilatedResidualBlock(nn.Module):
@@ -38,7 +38,7 @@ class DilatedConvNetConfig:
     dim_reduction_layers: tuple = (512, 256, 128, 64, 32)
     dilations: tuple = (1, 2, 4, 8, 16, 32, 64, 128)
     kernel_size: int = 7
-    num_classes: int = len(rmsd_bin_boundaries)
+    num_classes: int = len(rmsd_vals)
 
 
 class DilatedConvNet(nn.Module):

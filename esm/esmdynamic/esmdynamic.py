@@ -26,17 +26,17 @@ from esm.esmfold.v1.misc import (
 from esm.esmfold.v1.esmfold import ESMFold
 from esm.esmfold.v1.trunk import FoldingTrunkConfig, StructureModuleConfig
 
-from utils import rmsd_vals, prob_vals
-from dynamic_module import DynamicModule, DynamicModuleConfig
-from resnet import ResNet, SymmetricResNet, ResNetConfig
-from dilated_convnet import DilatedConvNet, DilatedConvNetConfig
+from .utils import rmsd_vals
+from .dynamic_module import DynamicModule, DynamicModuleConfig
+from .resnet import SymmetricResNet, ResNetConfig
+from .dilated_convnet import DilatedConvNet, DilatedConvNetConfig
 
 
 @dataclass
 class ESMDynamicConfig:
     dynamic_module: T.Any = DynamicModuleConfig()
-    resnet_contacts: T.Any = ResNetConfig()
-    resnet_conditionals: T.Any = ResNetConfig(num_classes=50)
+    resnet_contacts: T.Any = ResNetConfig(num_classes=1)
+    # resnet_conditionals: T.Any = ResNetConfig(num_classes=50)
     dilated_convnet: T.Any = DilatedConvNetConfig()
     # structure_module: T.Any = StructureModuleConfig()
     # trunk: T.Any = FoldingTrunkConfig()
@@ -47,7 +47,7 @@ class ESMDynamic(nn.Module):
     def __init__(self, esmdynamic_config=None, **kwargs):
         super().__init__()
 
-        self.prob_bins_vals = prob_vals.unsqueeze(1)
+        # self.prob_bins_vals = prob_vals.unsqueeze(1)
         self.rmsd_vals = rmsd_vals.unsqueeze(1)
 
         esmdynamic_config = esmdynamic_config if esmdynamic_config else OmegaConf.structured(ESMDynamicConfig(**kwargs))
@@ -65,7 +65,7 @@ class ESMDynamic(nn.Module):
             nn.Linear(self.esmfold.cfg.trunk.sequence_state_dim, self.esmfold.cfg.trunk.sequence_state_dim),
         )  # Output dimensions must match c_s
 
-        # This layer creates a bias term for the pair representation from the output of lddt_head and lm_logits
+        # This layer creates a bias term for the pair representation from the output of the distogram head and ptm head
         self.pair_transition_input_dim = 2 * self.esmfold.distogram_bins
         self.pair_transition = nn.Sequential(  #
             nn.LayerNorm(self.pair_transition_input_dim),
@@ -88,14 +88,14 @@ class ESMDynamic(nn.Module):
         self.resnet_dynamic_contacts = SymmetricResNet(**self.cfg.resnet_contacts)
 
         # Transition for dynamic contact probability to conditionals
-        self.cond_prob_transition = nn.Sequential(  #
-            nn.LayerNorm(self.resnet_dynamic_contacts.cfg.num_classes),
-            nn.Linear(self.resnet_dynamic_contacts.cfg.num_classes, self.dynamic_module.cfg.pairwise_state_dim),
-            nn.Linear(self.dynamic_module.cfg.pairwise_state_dim, self.dynamic_module.cfg.pairwise_state_dim),
-        )  # Output dimensions must match c_z
+        # self.cond_prob_transition = nn.Sequential(  #
+        #     nn.LayerNorm(self.resnet_dynamic_contacts.cfg.num_classes),
+        #     nn.Linear(self.resnet_dynamic_contacts.cfg.num_classes, self.dynamic_module.cfg.pairwise_state_dim),
+        #     nn.Linear(self.dynamic_module.cfg.pairwise_state_dim, self.dynamic_module.cfg.pairwise_state_dim),
+        # )  # Output dimensions must match c_z
 
         # ResNet for conditional probability prediction
-        self.resnet_conditional_prob = ResNet(**self.cfg.resnet_conditionals)
+        # self.resnet_conditional_prob = ResNet(**self.cfg.resnet_conditionals)
 
         # Dilated convolutional network for RMSD prediction
         self.rmsd_dilated_convnet = DilatedConvNet(**self.cfg.dilated_convnet)
@@ -146,21 +146,24 @@ class ESMDynamic(nn.Module):
 
         # Predict dynamic contact probability from pair features
         dynamic_contact_logits = self.resnet_dynamic_contacts(self.rearrange_pair(dynamic_module_output['s_z']))
-        dynamic_contact_logits = self.rearrange_pair_reverse(dynamic_contact_logits)
+        # dynamic_contact_logits = self.rearrange_pair_reverse(dynamic_contact_logits)
         structure['dynamic_contact_logits'] = dynamic_contact_logits
-        dynamic_contact_prob = nn.functional.sigmoid(dynamic_contact_logits)
+        dynamic_contact_prob = torch.sigmoid(dynamic_contact_logits)
         structure['dynamic_contact_prob'] = dynamic_contact_prob
-        structure['dynamic_contact_pred'] = torch.where(dynamic_contact_prob > 0.5, 1, 0).long()  # 0.5 threshold
+        structure['dynamic_contact_pred'] = torch.where(structure['dynamic_contact_prob'] > 0.5, 1, 0).long()  # 0.5
+        # threshold
 
         # Predict conditional probabilities
-        cond_probability_input = self.cond_prob_transition(dynamic_contact_logits) + dynamic_module_output['s_z']
-        conditional_probabilities = self.resnet_conditional_prob(self.rearrange_pair(cond_probability_input))
-        conditional_prob_logits = self.rearrange_pair_reverse(conditional_probabilities)
-        structure['conditional_prob_logits'] = conditional_prob_logits
-        structure['conditional_prob_prob'] = nn.functional.softmax(conditional_prob_logits, dim=-1)
+        # cond_probability_input = self.cond_prob_transition(self.rearrange_pair_reverse(dynamic_contact_logits)) \
+        #                          + dynamic_module_output['s_z']
+        # conditional_prob_logits = self.resnet_conditional_prob(self.rearrange_pair(cond_probability_input))
+        # # conditional_prob_logits = self.rearrange_pair_reverse(conditional_probabilities)
+        # structure['conditional_prob_logits'] = conditional_prob_logits
+        # structure['conditional_prob_prob'] = nn.functional.softmax(conditional_prob_logits, dim=1)
 
         #  "Categorical mixture" definition for the predictions
-        structure['conditional_prob_pred'] = (structure['conditional_prob_prob'] @ self.prob_bins_vals).squeeze(-1)
+        # structure['conditional_prob_pred'] = (self.rearrange_pair_reverse(structure['conditional_prob_prob'])
+        #                                       @ self.prob_bins_vals).squeeze(-1)
 
         # We set the entries that don't correspond to dynamic contacts to NaN because negative predictions don't have a
         # defined conditional probability.
@@ -174,14 +177,12 @@ class ESMDynamic(nn.Module):
         #                                      )
 
         # Predict RMSD
-        structure['rmsd_logit'] = self.rearrange_seq_reverse(
-            self.rmsd_dilated_convnet(self.rearrange_seq(dynamic_module_output['s_s']))
-        )
-        structure['rmsd_prob'] = nn.functional.softmax(structure['rmsd_logit'], dim=-1)
+        structure['rmsd_logits'] = self.rmsd_dilated_convnet(self.rearrange_seq(dynamic_module_output['s_s']))
+        structure['rmsd_prob'] = nn.functional.softmax(structure['rmsd_logits'], dim=1)
         # Bins will be used in a cross entropy loss function --> Use logits
         # structure['rmsd_bins'] = torch.unsqueeze(torch.argmax(structure['rmsd_prob'], dim=2), dim=2)
         # Approximate RMSD ("categorical mixture")
-        structure['rmsd_pred'] = (structure['rmsd_prob'] @ self.rmsd_vals).squeeze(-1)
+        structure['rmsd_pred'] = (self.rearrange_seq_reverse(structure['rmsd_prob']) @ self.rmsd_vals).squeeze(-1)
 
         return structure
 
@@ -412,3 +413,7 @@ class ESMDynamic(nn.Module):
                     outfile.write(pdb)
 
         return structure
+
+    @property
+    def device(self):
+        return self.esmfold.device
