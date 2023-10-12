@@ -63,14 +63,27 @@ def access_labels(cluster_id,
     dynamic_contacts = load_dynamic_contacts(dyncon_fpath)
     return dynamic_contacts, rmsd
 
+def get_crop_start_end(protein_length, crop_idx, max_len=512, overlap=256):
+    """
+    Calculate the start and end indices for a crop of a protein.
+    """
+    if (protein_length <= max_len) and (crop_idx == 0): # Single chunk
+        start = 0
+        end = protein_length
+    elif (crop_idx-1) * overlap + max_len >= protein_length: # Out of range
+        raise ValueError(f"Protein of length {protein_length} "
+                         f"does not have {crop_idx + 1} crops "
+                         f"for max length {max_len} and overlap {overlap}.")
+    elif crop_idx * overlap + max_len > protein_length: # Last chunk
+        start = protein_length - max_len
+        end = protein_length
+    else: # Intermediate chunk
+        start = crop_idx * overlap
+        end = crop_idx * overlap + max_len
+
+    return start, end
 
 # Work in progress...
-def get_crop_start_end(protein_length, crop_idx, max_len=512, overlap=256):
-    pass
-    # start = crop_idx*min(max_len-overlap, protein_length-end)
-    # end = 0
-    # return start, end
-
 
 def get_batched_labels(cluster_ids,
                        max_len=512,
