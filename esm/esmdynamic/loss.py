@@ -12,7 +12,6 @@ def binned_cross_entropy(
         inputs: torch.Tensor,
         targets: torch.Tensor,
         bin_vals: torch.Tensor,
-        ignore_indices: torch.Tensor = None,
         reduction: str = "none",
 ) -> torch.Tensor:
     """Cross entropy loss where incorrectly labeled samples are weighted by how far off the prediction was.
@@ -33,11 +32,11 @@ def binned_cross_entropy(
         Loss tensor with the reduction option applied.
     """
     ce_loss = nn.functional.cross_entropy(inputs, targets, reduction="none")  # Check output
-    p = nn.functional.softmax(inputs, dim=-1)  # Check shape is correct
-    bin_values = bin_vals[torch.argmax(p, dim=1)]  # Figure out dim for argmax
-    target_bin_values = bin_vals[torch.argmax(targets, dim=1)]  # Check output
-    loss = torch.abs(bin_values - target_bin_values) / len(bin_vals) * ce_loss  # Ensure shapes are correct
-    # Check reduction option and return loss accordingly
+    p = nn.functional.softmax(inputs, dim=-1)
+    bin_values = bin_vals[torch.argmax(p, dim=1)]
+    target_bin_values = bin_vals[torch.argmax(targets, dim=1)]
+    loss = torch.abs(bin_values - target_bin_values) / len(bin_vals) * ce_loss
+
     if reduction == "none":
         pass
     elif reduction == "mean":
@@ -50,6 +49,20 @@ def binned_cross_entropy(
         )
 
     return loss
+
+
+def filter_rmsd_loss(loss_rmsd, protein_lengths):
+    for i in range(len(protein_lengths)):
+        L = protein_lengths[i]
+        loss_rmsd[i, L:] = 0.
+    return loss_rmsd
+
+
+def filter_dyn_contacts_loss(loss_dyn_contact, protein_lengths):
+    for i in range(len(protein_lengths)):
+        L = protein_lengths[i]
+        loss_dyn_contact[i, :, L:, L:] = 0.
+    return loss_dyn_contact
 
 
 def full_form_loss(
@@ -68,7 +81,7 @@ def full_form_loss(
         dynamic_contacts_target,
         alpha=alpha,
         gamma=gamma,
-        reduction=reduction,
+        reduction="none",
     )
 
     rmsd_logits = inputs['rmsd_logits']
@@ -77,7 +90,13 @@ def full_form_loss(
         rmsd_logits,
         rmsd_target,
         bin_vals=rmsd_vals,
-        reduction=reduction,
+        reduction="none",
     )
 
-    return loss_rmsd + loss_dyn_contact
+    protein_lengths = target['protein_lengths']
+
+    filtered_loss_dyn_contacts = filter_dyn_contacts_loss(loss_dyn_contact, protein_lengths)
+    filtered_loss_rmsd = filter_rmsd_loss(loss_rmsd, protein_lengths)
+
+    return (filtered_loss_rmsd.sum() / protein_lengths.sum() +
+            filtered_loss_dyn_contacts.sum() / torch.square(protein_lengths).sum())
