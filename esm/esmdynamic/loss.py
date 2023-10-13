@@ -70,7 +70,6 @@ def full_form_loss(
         target,
         alpha=0.25,
         gamma=2,
-        reduction="none",
 ) -> torch.Tensor:
     """Loss for ESMDynamic model.
     """
