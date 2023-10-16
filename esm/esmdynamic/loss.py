@@ -35,7 +35,7 @@ def binned_cross_entropy(
     p = nn.functional.softmax(inputs, dim=-1)
     bin_values = bin_vals[torch.argmax(p, dim=1)]
     target_bin_values = bin_vals[torch.argmax(targets, dim=1)]
-    loss = torch.abs(bin_values - target_bin_values) + ce_loss
+    loss = torch.sqrt(torch.square(bin_values - target_bin_values)) + ce_loss
 
     if reduction == "none":
         pass
