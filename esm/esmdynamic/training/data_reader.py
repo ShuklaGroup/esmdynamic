@@ -7,9 +7,8 @@ from glob import glob
 from natsort import natsorted
 from scipy.spatial.distance import squareform
 import torch
-
-
-# TODO: convert collection of functions to reader object
+from torch.utils.data import Dataset
+from ..utils import rmsd_bin_boundaries
 
 def access_cached_output(cluster_id,
                          crop_index=0,
@@ -27,7 +26,8 @@ def get_batched_data(cluster_ids,
                      max_len=512,
                      crop_indices=None,
                      c_s=1024,
-                     c_z=128
+                     c_z=128,
+                     data_dirpath=""
                      ):
     # Initialize tensors
     batch_size = len(cluster_ids)
@@ -47,7 +47,7 @@ def get_batched_data(cluster_ids,
     if crop_indices is None:
         crop_indices = torch.zeros((batch_size)).long()
     for i, (cluster_id, crop_idx) in enumerate(zip(cluster_ids, crop_indices)):
-        cached_data = access_cached_output(cluster_id, crop_idx)
+        cached_data = access_cached_output(cluster_id, crop_idx, basepath=data_dirpath)
         _, L, _ = cached_data['s_s'].shape
         s_s[i, :L, :] = cached_data['s_s']
         s_z[i, :L, :L, :] = cached_data['s_z']
@@ -79,8 +79,8 @@ def get_batched_data(cluster_ids,
 
 
 def load_dynamic_contacts(fpath):
-    '''Load ground-truth dynamic contacts. To be called from access_labels().
-    '''
+    """Load ground-truth dynamic contacts. To be called from access_labels().
+    """
     dynamic_contacts = torch.load(fpath)
     dynamic_contacts = squareform(dynamic_contacts)
     N = dynamic_contacts.shape[0]
@@ -89,8 +89,8 @@ def load_dynamic_contacts(fpath):
 
 
 def load_rmsd(fpath, rmsd_bin_boundaries):
-    '''Load ground-truth RMSDs. To be called from access_labels().
-    '''
+    """Load ground-truth RMSDs and bin the values.
+    """
     rmsd = torch.load(fpath)
     N = rmsd.shape[0]
     M = len(rmsd_bin_boundaries) + 1
@@ -103,19 +103,23 @@ def load_rmsd(fpath, rmsd_bin_boundaries):
     return binned_output
 
 
+def load_binned_rmsd(fpath):
+    """Load ground-truth RMSDs. To be called from access_labels().
+    """
+    return torch.load(fpath)
+
+
 def access_labels(cluster_id,
-                  rmsd_bin_boundaries,
                   basepath="/mnt/sdb/10-DynamicESM/build_dataset/pdb_clusters_new/"
                   ):
-    '''Load ground-truth labels.
+    """Load ground-truth labels.
     Args:
         cluster_id (int): cluster index.
-        rmsd_bin_boundaries (Tensor): bin boundaries used to discretize RMSD values.
         basepath (str): path to dataset.
-    '''
+    """
     cluster_path = os.path.join(basepath, "{:08d}".format(cluster_id))
-    rmsd_fpath = os.path.join(cluster_path, "rmaxsd.pt")
-    rmsd = load_rmsd(rmsd_fpath, rmsd_bin_boundaries)
+    rmsd_fpath = os.path.join(cluster_path, "rmsd_binned.pt")
+    rmsd = load_binned_rmsd(rmsd_fpath)
     dyncon_fpath = os.path.join(cluster_path, "dynamic_contacts.pt")
     dynamic_contacts = load_dynamic_contacts(dyncon_fpath)
 
@@ -146,16 +150,17 @@ def get_crop_start_end(protein_length, crop_idx, max_len=512, overlap=256):
 def get_batched_labels(cluster_ids,
                        max_len=512,
                        crop_indices=None,
-                       rmsd_bin_boundaries=rmsd_bin_boundaries,
+                       rmsd_bin_number=len(rmsd_bin_boundaries) + 1,
+                       labels_dirpath=""
                        ):
     batch_size = len(cluster_ids)
     labels_dyn_contacts = torch.zeros((batch_size, 1, max_len, max_len))
-    labels_rmsd = torch.zeros((batch_size, len(rmsd_bin_boundaries) + 1, max_len))
-    protein_lengths = torch.zeros((batch_size)).long()
+    labels_rmsd = torch.zeros((batch_size, rmsd_bin_number, max_len))
+    protein_lengths = torch.zeros(batch_size).long()
     if crop_indices is None:
-        crop_indices = torch.zeros((batch_size)).long()
+        crop_indices = torch.zeros(batch_size).long()
     for i, (cluster_id, crop_idx) in enumerate(zip(cluster_ids, crop_indices)):
-        dyn_contacts, rmsd = access_labels(cluster_id, rmsd_bin_boundaries)
+        dyn_contacts, rmsd = access_labels(cluster_id, basepath=labels_dirpath)
         prot_length = rmsd.shape[-1]
         protein_lengths[i] = prot_length
         crop_start, crop_end = get_crop_start_end(prot_length, crop_idx)
@@ -173,18 +178,68 @@ def get_batched_labels(cluster_ids,
 def get_batched_data_labels(cluster_ids,
                             max_len=512,
                             crop_indices=None,
-                            rmsd_bin_boundaries=rmsd_bin_boundaries,
+                            data_dirpath="",
+                            labels_dirpath="",
                             ):
     inputs = get_batched_data(cluster_ids,
                               max_len=512,
                               crop_indices=None,
                               c_s=1024,
-                              c_z=128
+                              c_z=128,
+                              data_dirpath=data_dirpath
                               )
 
     targets = get_batched_labels(cluster_ids,
                                  max_len=max_len,
                                  crop_indices=crop_indices,
-                                 rmsd_bin_boundaries=rmsd_bin_boundaries
+                                 labels_dirpath=labels_dirpath
                                  )
     return inputs, targets
+
+
+class DynContactDataset(Dataset):
+    """Custom Dataset object for dynamic contacts.
+
+    Args:
+        data_dir (str): path where input data are stored.
+        labels_dir (str): path where ground-truth labels are stored.
+        cluster_indices (list[list[int]]): list with cluster and crop indices.
+            Indices are read as `cluster_index, crop_index = cluster_indices[index]` for some int `index`.
+
+    Usage:
+        Using indices saved in `cluster_indices.pkl`.
+        >>> import pickle
+        >>> from torch.utils.data import DataLoader
+        >>> cluster_indices = pickle.load(open("cluster_indices.pkl", "rb"))
+        >>> dataset = DynContactDataset(data_dir="/.", labels_dir="/.", cluster_indices=cluster_indices)
+        >>> dataloader = DataLoader(dataset, batch_size=8, shuffle=True)
+    """
+
+    def __init__(self, data_dir, labels_dir, cluster_indices):
+        self.data_dir = data_dir
+        self.labels_dir = labels_dir
+        self.cluster_indices = cluster_indices  # Samples (crops) to include in the dataset
+
+    def __len__(self):
+        return len(self.cluster_indices)
+
+    def __getitem__(self, index):
+        idx, crop_idx = self.cluster_indices[index]
+        inputs, targets = get_batched_data_labels(
+            [idx],
+            crop_indices=[crop_idx],
+            data_dirpath=self.data_dir,
+            labels_dirpath=self.labels_dir
+        )
+        return inputs, targets
+
+    def __getitems__(self, indices):
+        idxs = [self.cluster_indices[i][0] for i in indices]
+        crop_idxs = [self.cluster_indices[i][1] for i in indices]
+        inputs, targets = get_batched_data_labels(
+            idxs,
+            crop_indices=crop_idxs,
+            data_dirpath=self.data_dir,
+            labels_dirpath=self.labels_dir
+        )
+        return inputs, targets
