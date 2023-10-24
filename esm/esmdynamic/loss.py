@@ -23,7 +23,6 @@ def binned_cross_entropy(
                 classification label for each element in inputs
                 (0 for the negative class and 1 for the positive class).
         bin_vals (Tensor): Bin centers for each class.
-        ignore_indices (Tensor): Indices to ignore in loss calculation.
         reduction (string): ``'none'`` | ``'mean'`` | ``'sum'``
                 ``'none'``: No reduction will be applied to the output.
                 ``'mean'``: The output will be averaged.
