@@ -10,6 +10,7 @@ import torch
 from torch.utils.data import Dataset
 from ..utils import rmsd_bin_boundaries
 
+
 def access_cached_output(cluster_id,
                          crop_index=0,
                          basepath="/mnt/sdb/10-DynamicESM/build_dataset/cached_esm_output/"
@@ -22,45 +23,44 @@ def access_cached_output(cluster_id,
     return torch.load(filepaths[crop_index])
 
 
-def get_batched_data(cluster_ids,
-                     max_len=512,
-                     crop_indices=None,
-                     c_s=1024,
-                     c_z=128,
-                     data_dirpath=""
-                     ):
+def get_input(cluster_id,
+              max_len=512,
+              crop_id=None,
+              c_s=1024,
+              c_z=128,
+              data_dirpath=""
+              ):
     # Initialize tensors
-    batch_size = len(cluster_ids)
-    s_s = torch.zeros((batch_size, max_len, c_s))
-    s_z = torch.zeros((batch_size, max_len, max_len, c_z))
-    aatype = torch.zeros((batch_size, max_len)).long()
-    mask = torch.zeros((batch_size, max_len)).long()
-    residue_index = torch.zeros((batch_size, max_len)).long()
-    frames = torch.zeros((8, batch_size, max_len, 7))
-    sidechain_frames = torch.zeros((8, batch_size, max_len, 8, 4, 4))
-    unnormalized_angles = torch.zeros((8, batch_size, max_len, 7, 2))
-    angles = torch.zeros((8, batch_size, max_len, 7, 2))
-    positions = torch.zeros((8, batch_size, max_len, 14, 3))
-    states = torch.zeros((8, batch_size, max_len, 384))
-    single = torch.zeros((batch_size, max_len, 384))
+    s_s = torch.zeros((max_len, c_s))
+    s_z = torch.zeros((max_len, max_len, c_z))
+    aatype = torch.zeros((max_len)).long()
+    mask = torch.zeros((max_len)).long()
+    residue_index = torch.zeros((max_len)).long()
+    frames = torch.zeros((8, max_len, 7))
+    sidechain_frames = torch.zeros((8, max_len, 8, 4, 4))
+    unnormalized_angles = torch.zeros((8, max_len, 7, 2))
+    angles = torch.zeros((8, max_len, 7, 2))
+    positions = torch.zeros((8, max_len, 14, 3))
+    states = torch.zeros((8, max_len, 384))
+    single = torch.zeros((max_len, 384))
 
-    if crop_indices is None:
-        crop_indices = torch.zeros((batch_size)).long()
-    for i, (cluster_id, crop_idx) in enumerate(zip(cluster_ids, crop_indices)):
-        cached_data = access_cached_output(cluster_id, crop_idx, basepath=data_dirpath)
-        _, L, _ = cached_data['s_s'].shape
-        s_s[i, :L, :] = cached_data['s_s']
-        s_z[i, :L, :L, :] = cached_data['s_z']
-        aatype[i, :L] = cached_data['aatype']
-        mask[i, :L] = cached_data['mask']
-        residue_index[i, :L] = cached_data['residue_index']
-        frames[:, i, :L, :] = cached_data['frames'][:, 0, :, :]
-        sidechain_frames[:, i, :L, :, :, :] = cached_data['sidechain_frames'][:, 0, :, :, :, :]
-        unnormalized_angles[:, i, :L, :, :] = cached_data['unnormalized_angles'][:, 0, :, :, :]
-        angles[:, i, :L, :, :] = cached_data['angles'][:, 0, :, :, :]
-        positions[:, i, :L, :, :] = cached_data['positions'][:, 0, :, :, :]
-        states[:, i, :L, :] = cached_data['states'][:, 0, :, :]
-        single[i, :L, :] = cached_data['single']
+    if crop_id is None:
+        crop_id = 0
+
+    cached_data = access_cached_output(cluster_id, crop_id, basepath=data_dirpath)
+    _, L, _ = cached_data['s_s'].shape
+    s_s[:L, :] = cached_data['s_s']
+    s_z[:L, :L, :] = cached_data['s_z']
+    aatype[:L] = cached_data['aatype']
+    mask[:L] = cached_data['mask']
+    residue_index[:L] = cached_data['residue_index']
+    frames[:, :L, :] = cached_data['frames'][:, 0, :, :]
+    sidechain_frames[:, :L, :, :, :] = cached_data['sidechain_frames'][:, 0, :, :, :, :]
+    unnormalized_angles[:, :L, :, :] = cached_data['unnormalized_angles'][:, 0, :, :, :]
+    angles[:, :L, :, :] = cached_data['angles'][:, 0, :, :, :]
+    positions[:, :L, :, :] = cached_data['positions'][:, 0, :, :, :]
+    states[:, :L, :] = cached_data['states'][:, 0, :, :]
+    single[:L, :] = cached_data['single']
 
     return dict(
         s_s=s_s,
@@ -76,6 +76,22 @@ def get_batched_data(cluster_ids,
         states=states,
         single=single,
     )
+
+
+def fix_dim_order(batch_data):
+    """For keys `frames`, `sidechain_frames`, `unnormalized_angles`, `angles`, `positions`, and `states` the batch
+    dimension should be dim1 instead dim0.
+    """
+    # Keys to modify
+    change_keys = {"frames", "sidechain_frames", "unnormalized_angles", "angles", "positions", "states"}
+    # Dim order change auxiliary function
+    change_dims = lambda x: torch.transpose(x, 0, 1)
+
+    batch_data = {
+        k: change_dims(v) if k in change_keys else v for k, v in batch_data.items()
+    }
+
+    return batch_data
 
 
 def load_dynamic_contacts(fpath):
@@ -126,75 +142,75 @@ def access_labels(cluster_id,
     return dynamic_contacts, rmsd
 
 
-def get_crop_start_end(protein_length, crop_idx, max_len=512, overlap=256):
+def get_crop_start_end(protein_length, crop_id, max_len=512, overlap=256):
     """
     Calculate the start and end indices for a crop of a protein.
     """
-    if (protein_length <= max_len) and (crop_idx == 0):  # Single chunk
+    if (protein_length <= max_len) and (crop_id == 0):  # Single chunk
         start = 0
         end = protein_length
-    elif (crop_idx - 1) * overlap + max_len >= protein_length:  # Out of range
+    elif (crop_id - 1) * overlap + max_len >= protein_length:  # Out of range
         raise ValueError(f"Protein of length {protein_length} "
-                         f"does not have {crop_idx + 1} crops "
+                         f"does not have {crop_id + 1} crops "
                          f"for max length {max_len} and overlap {overlap}.")
-    elif crop_idx * overlap + max_len > protein_length:  # Last chunk
+    elif crop_id * overlap + max_len > protein_length:  # Last chunk
         start = protein_length - max_len
         end = protein_length
     else:  # Intermediate chunk
-        start = crop_idx * overlap
-        end = crop_idx * overlap + max_len
+        start = crop_id * overlap
+        end = crop_id * overlap + max_len
 
     return start, end
 
 
-def get_batched_labels(cluster_ids,
-                       max_len=512,
-                       crop_indices=None,
-                       rmsd_bin_number=len(rmsd_bin_boundaries) + 1,
-                       labels_dirpath=""
-                       ):
-    batch_size = len(cluster_ids)
-    labels_dyn_contacts = torch.zeros((batch_size, 1, max_len, max_len))
-    labels_rmsd = torch.zeros((batch_size, rmsd_bin_number, max_len))
-    protein_lengths = torch.zeros(batch_size).long()
-    if crop_indices is None:
-        crop_indices = torch.zeros(batch_size).long()
-    for i, (cluster_id, crop_idx) in enumerate(zip(cluster_ids, crop_indices)):
-        dyn_contacts, rmsd = access_labels(cluster_id, basepath=labels_dirpath)
-        prot_length = rmsd.shape[-1]
-        protein_lengths[i] = prot_length
-        crop_start, crop_end = get_crop_start_end(prot_length, crop_idx)
-        crop_length = crop_end - crop_start  # Might be less than max_len
-        labels_dyn_contacts[i, 0, :crop_length, :crop_length] = dyn_contacts[0, 0, crop_start:crop_end,
-                                                                crop_start:crop_end]
-        labels_rmsd[i, :, :crop_length] = rmsd[0, :, crop_start:crop_end]
+def get_labels(cluster_id,
+               max_len=512,
+               crop_id=None,
+               rmsd_bin_number=len(rmsd_bin_boundaries) + 1,
+               labels_dirpath=""
+               ):
+    labels_dyn_contacts = torch.zeros((1, max_len, max_len))
+    labels_rmsd = torch.zeros((rmsd_bin_number, max_len))
+    protein_length = torch.zeros(1).long()
+    if crop_id is None:
+        crop_id = 0
+
+    dyn_contacts, rmsd = access_labels(cluster_id, basepath=labels_dirpath)
+    prot_length = rmsd.shape[-1]
+    protein_length[0] = prot_length
+    crop_start, crop_end = get_crop_start_end(prot_length, crop_id)
+    crop_length = crop_end - crop_start  # Might be less than max_len
+    labels_dyn_contacts[0, :crop_length, :crop_length] = dyn_contacts[0, 0, crop_start:crop_end,
+                                                         crop_start:crop_end]
+    labels_rmsd[:, :crop_length] = rmsd[0, :, crop_start:crop_end]
 
     return dict(dynamic_contacts=labels_dyn_contacts,
                 rmsd=labels_rmsd,
-                protein_lengths=protein_lengths
+                protein_lengths=protein_length
                 )
 
 
-def get_batched_data_labels(cluster_ids,
-                            max_len=512,
-                            crop_indices=None,
-                            data_dirpath="",
-                            labels_dirpath="",
-                            ):
-    inputs = get_batched_data(cluster_ids,
-                              max_len=512,
-                              crop_indices=None,
-                              c_s=1024,
-                              c_z=128,
-                              data_dirpath=data_dirpath
-                              )
+def get_input_labels(cluster_id,
+                     max_len=512,
+                     crop_id=None,
+                     data_dirpath="",
+                     labels_dirpath="",
+                     ):
+    inputs = get_input(cluster_id,
+                       max_len=512,
+                       crop_id=crop_id,
+                       c_s=1024,
+                       c_z=128,
+                       data_dirpath=data_dirpath
+                       )
 
-    targets = get_batched_labels(cluster_ids,
-                                 max_len=max_len,
-                                 crop_indices=crop_indices,
-                                 labels_dirpath=labels_dirpath
-                                 )
-    return inputs, targets
+    labels = get_labels(cluster_id,
+                        max_len=max_len,
+                        crop_id=crop_id,
+                        labels_dirpath=labels_dirpath
+                        )
+
+    return inputs, labels
 
 
 class DynContactDataset(Dataset):
@@ -225,21 +241,10 @@ class DynContactDataset(Dataset):
 
     def __getitem__(self, index):
         idx, crop_idx = self.cluster_indices[index]
-        inputs, targets = get_batched_data_labels(
-            [idx],
-            crop_indices=[crop_idx],
+        inputs, labels = get_input_labels(
+            idx,
+            crop_id=crop_idx,
             data_dirpath=self.data_dir,
             labels_dirpath=self.labels_dir
         )
-        return inputs, targets
-
-    def __getitems__(self, indices):
-        idxs = [self.cluster_indices[i][0] for i in indices]
-        crop_idxs = [self.cluster_indices[i][1] for i in indices]
-        inputs, targets = get_batched_data_labels(
-            idxs,
-            crop_indices=crop_idxs,
-            data_dirpath=self.data_dir,
-            labels_dirpath=self.labels_dir
-        )
-        return inputs, targets
+        return inputs, labels
