@@ -58,7 +58,7 @@ def train_one_epoch(epoch_index, tb_writer):
     for i, data in enumerate(training_loader):
         # Every data instance is an input + label pair
         inputs, labels = data
-        data_reader.fix_dim_order(inputs)
+        inputs = data_reader.fix_dim_order(inputs)
         # Zero your gradients for every batch!
         optimizer.zero_grad()
 
