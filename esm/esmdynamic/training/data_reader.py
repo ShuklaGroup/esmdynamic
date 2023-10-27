@@ -19,7 +19,7 @@ def access_cached_output(cluster_id,
     The crop index can be specified for proteins longer than 512 residues.
     """
     cluster_path = os.path.join(basepath, "{:08d}".format(cluster_id))
-    filepaths = natsorted(glob(os.path.join(cluster_path, "cached_*.pt")))
+    filepaths = natsorted(glob(os.path.join(cluster_path, "cached_structure_*.pt")))
     return torch.load(filepaths[crop_index])
 
 
@@ -85,7 +85,7 @@ def fix_dim_order(batch_data):
     # Keys to modify
     change_keys = {"frames", "sidechain_frames", "unnormalized_angles", "angles", "positions", "states"}
     # Dim order change auxiliary function
-    change_dims = lambda x: torch.transpose(x, 0, 1)
+    change_dims = lambda x: torch.transpose(x, 1, 0)
 
     batch_data = {
         k: change_dims(v) if k in change_keys else v for k, v in batch_data.items()

@@ -44,33 +44,41 @@ class ESMDynamicConfig:
 
 
 class ESMDynamic(nn.Module):
-    def __init__(self, esmdynamic_config=None, **kwargs):
+    def __init__(self, load_esmfold=True, esmdynamic_config=None, **kwargs):
         super().__init__()
 
-        # self.prob_bins_vals = prob_vals.unsqueeze(1)
         self.rmsd_vals = rmsd_vals.unsqueeze(1)
 
         esmdynamic_config = esmdynamic_config if esmdynamic_config else OmegaConf.structured(ESMDynamicConfig(**kwargs))
         self.cfg = esmdynamic_config
 
         #  Load ESMFold
-        self.esmfold = esm.pretrained.esmfold_v1()
-        self.esmfold.requires_grad_(False)
+        self.load_esmfold = load_esmfold
+        if self.load_esmfold is True:
+            self.esmfold = esm.pretrained.esmfold_v1()
+            self.esmfold.requires_grad_(False)
+
+        # Define some handy constants in case ESMFold model is not loaded
+        self.esmfold_n_tokens_embed = 23
+        self.esmfold_lddt_bins = 50
+        self.esmfold_cfg_trunk_sequence_state_dim = 1024
+        self.esmfold_distogram_bins = 64
+        self.esmfold_cfg_trunk_pairwise_state_dim = 128
 
         # This layer creates a bias term for the sequence representation from the output of lddt_head and lm_logits
-        self.seq_transition_input_dim = self.esmfold.n_tokens_embed + 37 * self.esmfold.lddt_bins
+        self.seq_transition_input_dim = self.esmfold_n_tokens_embed + 37 * self.esmfold_lddt_bins
         self.seq_transition = nn.Sequential(
             nn.LayerNorm(self.seq_transition_input_dim),
-            nn.Linear(self.seq_transition_input_dim, self.esmfold.cfg.trunk.sequence_state_dim),
-            nn.Linear(self.esmfold.cfg.trunk.sequence_state_dim, self.esmfold.cfg.trunk.sequence_state_dim),
+            nn.Linear(self.seq_transition_input_dim, self.esmfold_cfg_trunk_sequence_state_dim),
+            nn.Linear(self.esmfold_cfg_trunk_sequence_state_dim, self.esmfold_cfg_trunk_sequence_state_dim),
         )  # Output dimensions must match c_s
 
         # This layer creates a bias term for the pair representation from the output of the distogram head and ptm head
-        self.pair_transition_input_dim = 2 * self.esmfold.distogram_bins
+        self.pair_transition_input_dim = 2 * self.esmfold_distogram_bins
         self.pair_transition = nn.Sequential(  #
             nn.LayerNorm(self.pair_transition_input_dim),
-            nn.Linear(self.pair_transition_input_dim, self.esmfold.cfg.trunk.pairwise_state_dim),
-            nn.Linear(self.esmfold.cfg.trunk.pairwise_state_dim, self.esmfold.cfg.trunk.pairwise_state_dim),
+            nn.Linear(self.pair_transition_input_dim, self.esmfold_cfg_trunk_pairwise_state_dim),
+            nn.Linear(self.esmfold_cfg_trunk_pairwise_state_dim, self.esmfold_cfg_trunk_pairwise_state_dim),
         )  # Output dimensions must match c_z
 
         # DynamicModule based on evoformer block (from FoldingTrunk)
@@ -101,7 +109,8 @@ class ESMDynamic(nn.Module):
         self.rmsd_dilated_convnet = DilatedConvNet(**self.cfg.dilated_convnet)
 
     def set_chunk_size(self, chunk_size: T.Optional[int]):
-        self.esmfold.set_chunk_size(chunk_size)
+        if self.load_esmfold is True:
+            self.esmfold.set_chunk_size(chunk_size)
         self.dynamic_module.set_chunk_size(chunk_size)
 
     def forward(
@@ -111,19 +120,26 @@ class ESMDynamic(nn.Module):
             residx: T.Optional[torch.Tensor] = None,
             masking_pattern: T.Optional[torch.Tensor] = None,
             num_recycles: T.Optional[int] = None,
-            precomputed: T.Optional[dict] = None,  # Folding trunk output --> Only used at training time
+            precomputed: T.Optional[dict] = None,  # ESMFold output --> Only used at training time
     ):
+
+        if self.load_esmfold is False:
+            try:
+                assert(precomputed is not None)
+            except AssertionError:
+                raise RuntimeError("If load_esmfold=False, the model can only be called with precomputed input.")
+
         with torch.no_grad():
             if precomputed is None:
                 structure = self.esmfold(aa, mask, residx, masking_pattern, num_recycles)
             if precomputed:
                 structure = precomputed
-                structure = self._structure_from_trunk_output(structure)
+                # structure = self._structure_from_trunk_output(structure) --> No longer necessary
 
         # Combine output from lddt_head and lm_logits to bias s_s
         lddt_logits = structure['lddt_head'][-1]  # Use last state
         lddt_logits = lddt_logits.reshape(*lddt_logits.shape[:2],
-                                          37 * self.esmfold.lddt_bins)  # Reshape into (B, L, 37 * self.lddt_bins)
+                                          37 * self.esmfold_lddt_bins)  # Reshape into (B, L, 37 * self.lddt_bins)
         lm_logits = structure['lm_logits']  # Shape (B, L, self.n_tokens_embed)
         seq_transition_input = torch.cat((lddt_logits, lm_logits), dim=2)  # Concatenate along dim dimension
         s_s_0 = structure['s_s'] + self.seq_transition(seq_transition_input)
@@ -215,7 +231,9 @@ class ESMDynamic(nn.Module):
             chain_linker (str): Linker to use between chains if predicting a multimer. Has no effect on single chain
                 predictions. Default: length-25 poly-G ("G" * 25).
         """
-        #
+        if self.load_esmfold is False:
+            raise RuntimeError("The method _trunk_input_from_seqs cannot be called if ESMFold is not loaded.")
+
         if isinstance(sequences, str):
             sequences = [sequences]
 
@@ -292,6 +310,9 @@ class ESMDynamic(nn.Module):
             sequences (Union[str, List[str]]): amino acid sequences.
             filename (str): output path/name. If provided, saves results here as a dictionary (.pkl file).
         """
+        if self.load_esmfold is False:
+            raise RuntimeError("The method _trunk_output_from_seqs cannot be called if ESMFold is not loaded.")
+
         trunk_arguments = self._trunk_input_from_seqs(sequences)
         results = self.esmfold.trunk(**trunk_arguments)
 
@@ -309,25 +330,6 @@ class ESMDynamic(nn.Module):
 
         return results
 
-    # DEPRECATED
-    # @torch.no_grad()
-    # def _structure_from_trunk_input(self, trunk_arguments: dict, pdb_path: T.Optional[str] = None):
-    #     """Compute final predicted structure from trunk input. I will use this function to check effects of cropping and
-    #     padding at a downstream portion of the network.
-    #
-    #     Args:
-    #         trunk_arguments (dict): arguments for the FoldingTrunk.
-    #         pdb_path (str): output path/name. If provided, saves results here as a PDB file.
-    #     """
-    #     structure = self.trunk(**trunk_arguments)
-    #
-    #     # I'm adding additional keys because they're needed for downstream tasks
-    #     structure["aatype"] = trunk_arguments["true_aa"]
-    #     structure["residue_index"] = trunk_arguments["residx"]
-    #     structure["mask"] = trunk_arguments["mask"]
-    #
-    #     return self._structure_from_trunk_output(structure, pdb_path)
-
     @torch.no_grad()
     def _structure_from_trunk_output(self, structure: dict, pdb_path: T.Optional[str] = None):
         """Compute final predicted structure from trunk output. I will use this function to check effects of cropping
@@ -339,6 +341,9 @@ class ESMDynamic(nn.Module):
             structure (dict): output of FoldingTrunk.
             pdb_path (str): output path/name. If provided, saves results here as a PDB file.
         """
+        if self.load_esmfold is False:
+            raise RuntimeError("The method _structure_from_trunk_output cannot be called if ESMFold is not loaded.")
+
         mask = structure["mask"]
         B, L = structure["aatype"].shape
 
@@ -416,4 +421,4 @@ class ESMDynamic(nn.Module):
 
     @property
     def device(self):
-        return self.esmfold.device
+        return self.seq_transition[0].device
