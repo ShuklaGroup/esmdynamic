@@ -34,7 +34,7 @@ setup(
     author="Facebook AI Research",
     # url="https://github.com/facebookresearch/esm",
     license="MIT",
-    packages=["esm", "esm/model", "esm/inverse_folding", "esm/esmfold/v1", "esm/esmdynamic"],
+    packages=["esm", "esm/model", "esm/inverse_folding", "esm/esmfold/v1", "esm/esmdynamic", "esm/esmdynamic/training"],
     extras_require=extras,
     data_files=[("source_docs/esm", ["LICENSE", "README.md", "CODE_OF_CONDUCT.rst"])],
     zip_safe=True,
