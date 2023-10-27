@@ -33,16 +33,20 @@ def get_input(cluster_id,
     # Initialize tensors
     s_s = torch.zeros((max_len, c_s))
     s_z = torch.zeros((max_len, max_len, c_z))
-    aatype = torch.zeros((max_len)).long()
+    # aatype = torch.zeros((max_len)).long()
     mask = torch.zeros((max_len)).long()
     residue_index = torch.zeros((max_len)).long()
-    frames = torch.zeros((8, max_len, 7))
-    sidechain_frames = torch.zeros((8, max_len, 8, 4, 4))
-    unnormalized_angles = torch.zeros((8, max_len, 7, 2))
-    angles = torch.zeros((8, max_len, 7, 2))
-    positions = torch.zeros((8, max_len, 14, 3))
-    states = torch.zeros((8, max_len, 384))
-    single = torch.zeros((max_len, 384))
+    # frames = torch.zeros((8, max_len, 7))
+    # sidechain_frames = torch.zeros((8, max_len, 8, 4, 4))
+    # unnormalized_angles = torch.zeros((8, max_len, 7, 2))
+    # angles = torch.zeros((8, max_len, 7, 2))
+    # positions = torch.zeros((8, max_len, 14, 3))
+    # states = torch.zeros((8, max_len, 384))
+    # single = torch.zeros((max_len, 384))
+    lddt_head = torch.zeros((shape))
+    lm_logits = torch.zeros((shape))
+    ptm_logits = torch.zeros((shape))
+    distogram_logits = torch.zeros((shape))
 
     if crop_id is None:
         crop_id = 0
@@ -51,39 +55,46 @@ def get_input(cluster_id,
     _, L, _ = cached_data['s_s'].shape
     s_s[:L, :] = cached_data['s_s']
     s_z[:L, :L, :] = cached_data['s_z']
-    aatype[:L] = cached_data['aatype']
+    # aatype[:L] = cached_data['aatype']
     mask[:L] = cached_data['mask']
     residue_index[:L] = cached_data['residue_index']
-    frames[:, :L, :] = cached_data['frames'][:, 0, :, :]
-    sidechain_frames[:, :L, :, :, :] = cached_data['sidechain_frames'][:, 0, :, :, :, :]
-    unnormalized_angles[:, :L, :, :] = cached_data['unnormalized_angles'][:, 0, :, :, :]
-    angles[:, :L, :, :] = cached_data['angles'][:, 0, :, :, :]
-    positions[:, :L, :, :] = cached_data['positions'][:, 0, :, :, :]
-    states[:, :L, :] = cached_data['states'][:, 0, :, :]
-    single[:L, :] = cached_data['single']
+    # frames[:, :L, :] = cached_data['frames'][:, 0, :, :]
+    # sidechain_frames[:, :L, :, :, :] = cached_data['sidechain_frames'][:, 0, :, :, :, :]
+    # unnormalized_angles[:, :L, :, :] = cached_data['unnormalized_angles'][:, 0, :, :, :]
+    # angles[:, :L, :, :] = cached_data['angles'][:, 0, :, :, :]
+    # positions[:, :L, :, :] = cached_data['positions'][:, 0, :, :, :]
+    # states[:, :L, :] = cached_data['states'][:, 0, :, :]
+    # single[:L, :] = cached_data['single']
+    lddt_head[:, :L, :, :] = cached_data['lddt_head']
+    lm_logits[:L, shape] = cached_data['lm_logits']
+    ptm_logits[:L, shape] = cached_data['ptm_logits']
+    distogram_logits[:L, shape] = cached_data['distogram_logits']
 
     return dict(
         s_s=s_s,
         s_z=s_z,
-        aatype=aatype,
+        # aatype=aatype,
         mask=mask,
         residue_index=residue_index,
-        frames=frames,
-        sidechain_frames=sidechain_frames,
-        unnormalized_angles=unnormalized_angles,
-        angles=angles,
-        positions=positions,
-        states=states,
-        single=single,
+        # frames=frames,
+        # sidechain_frames=sidechain_frames,
+        # unnormalized_angles=unnormalized_angles,
+        # angles=angles,
+        # positions=positions,
+        # states=states,
+        # single=single,
+        lddt_head=lddt_head,
+        lm_logits=lm_logits,
+        ptm_logits=ptm_logits,
+        distogram_logits=distogram_logits,
     )
 
 
 def fix_dim_order(batch_data):
-    """For keys `frames`, `sidechain_frames`, `unnormalized_angles`, `angles`, `positions`, and `states` the batch
-    dimension should be dim1 instead dim0.
+    """For certain keys batch dimension should be dim1 instead dim0.
     """
     # Keys to modify
-    change_keys = {"frames", "sidechain_frames", "unnormalized_angles", "angles", "positions", "states"}
+    change_keys = {"lddt_head", "distogram_logits"}
     # Dim order change auxiliary function
     change_dims = lambda x: torch.transpose(x, 1, 0)
 
@@ -180,8 +191,7 @@ def get_labels(cluster_id,
     protein_length[0] = prot_length
     crop_start, crop_end = get_crop_start_end(prot_length, crop_id)
     crop_length = crop_end - crop_start  # Might be less than max_len
-    labels_dyn_contacts[0, :crop_length, :crop_length] = dyn_contacts[0, 0, crop_start:crop_end,
-                                                         crop_start:crop_end]
+    labels_dyn_contacts[0, :crop_length, :crop_length] = dyn_contacts[0, 0, crop_start:crop_end, crop_start:crop_end]
     labels_rmsd[:, :crop_length] = rmsd[0, :, crop_start:crop_end]
 
     return dict(dynamic_contacts=labels_dyn_contacts,
