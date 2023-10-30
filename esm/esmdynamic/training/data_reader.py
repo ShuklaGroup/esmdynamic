@@ -65,10 +65,10 @@ def get_input(cluster_id,
     # positions[:, :L, :, :] = cached_data['positions'][:, 0, :, :, :]
     # states[:, :L, :] = cached_data['states'][:, 0, :, :]
     # single[:L, :] = cached_data['single']
-    lddt_head[:, :L, :, :] = cached_data['lddt_head']
-    lm_logits[:L, :] = cached_data['lm_logits']
-    ptm_logits[:L, :L, :] = cached_data['ptm_logits']
-    distogram_logits[:L, :L, :] = cached_data['distogram_logits']
+    lddt_head[:, :L, :, :] = cached_data['lddt_head'][:, 0, :, :, :]
+    lm_logits[:L, :] = cached_data['lm_logits'][0, :, :]
+    ptm_logits[:L, :L, :] = cached_data['ptm_logits'][0, :, :, :]
+    distogram_logits[:L, :L, :] = cached_data['distogram_logits'][0, :, :, :]
 
     return dict(
         s_s=s_s,
