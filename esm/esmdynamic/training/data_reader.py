@@ -46,7 +46,7 @@ def get_input(cluster_id,
     lddt_head = torch.zeros((8, max_len, 37, 50)) # 8 = states, 37 = seq_transition, 50 = esmfold.lddt_bins
     lm_logits = torch.zeros((max_len, 23)) # 23 = esmfold.n_tokens_embed
     ptm_logits = torch.zeros((max_len, max_len, 64)) # 64 = esmfold.distogram_bins
-    distogram_logits = torch.zeros((max_len, max_len, 128)) # 128 = esmfold.cfg.trunk.pairwise_state_dim
+    distogram_logits = torch.zeros((max_len, max_len, 64)) # 64 = esmfold.distogram_bins
 
     if crop_id is None:
         crop_id = 0
