@@ -30,13 +30,66 @@ def cast_bfloat16(batch_labels):
     return batch_labels
 
 
-def train_one_epoch(epoch_index, tb_writer):
+# Initialize data sets
+def init_datasets(cluster_index_file, data_dir, labels_dir, split_lengths=None):
+    with open(cluster_index_file, "rb") as infile:
+        cluster_indices = torch.tensor(pickle.load(infile))
+
+    if split_lengths is None:
+        samples = len(cluster_indices)
+        train, val, test = int(samples * 0.8), int(samples * 0.1), int(samples * 0.1)
+        split_lengths = (train, val, test)
+
+    dataset = data_reader.DynContactDataset(
+        data_dir=data_dir,
+        labels_dir=labels_dir,
+        cluster_indices=cluster_indices[torch.randint(len(cluster_indices), (sum(split_lengths),))]
+        # Modify for reproducibility
+    )
+
+    training_set, validation_set, testing_set = torch.utils.data.random_split(dataset, split_lengths)
+
+    return training_set, validation_set, testing_set
+
+
+def init_data_loaders(training_set, validation_set, batch_size=1, batch_accum=16):
+    training_loader = DataLoader(training_set, batch_size=batch_size, shuffle=True)
+    validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=False)
+    return training_loader, validation_loader
+
+
+def init_model(chunk_size=256, device="cpu"):
+    model = ESMDynamic(load_esmfold=False)
+    model.set_chunk_size(chunk_size)
+    if device == "cuda":
+        model.cuda()
+
+    return model
+
+
+def init_optimizer(model, lr=0.001, eps=1e-6, sch_iters=10):
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, eps=eps)
+    scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, total_iters=sch_iters)
+    return optimizer, scheduler
+
+
+def init_writer():
+    # Initialize other parameters for the run
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    return timestamp, SummaryWriter('runs/trainer_{}'.format(timestamp))
+
+
+def train_one_epoch(training_loader,
+                    optimizer,
+                    scheduler,
+                    model,
+                    epoch_index,
+                    tb_writer,
+                    device="cuda",
+                    batch_accum=1):
     running_loss = 0.
     last_loss = 0.
 
-    # Here, we use enumerate(training_loader) instead of
-    # iter(training_loader) so that we can track the batch
-    # index and do some intra-epoch reporting
     for i, data in enumerate(training_loader):
         # Every data instance is an input + label pair
         inputs, labels = data
@@ -46,7 +99,7 @@ def train_one_epoch(epoch_index, tb_writer):
         optimizer.zero_grad()
 
         # Make predictions for this batch
-        with torch.autocast(device_type="cpu", dtype=torch.bfloat16):
+        with torch.autocast(device_type=device, dtype=torch.bfloat16):
             outputs = model(precomputed=inputs)
             labels = cast_bfloat16(labels)
             # Compute the loss and its gradients
@@ -70,78 +123,68 @@ def train_one_epoch(epoch_index, tb_writer):
 
     return last_loss
 
-# Initialize data sets
-with open("../build_dataset/cluster_indices.pkl", "rb") as infile:
-    cluster_indices = torch.tensor(pickle.load(infile))
-data_dir = "../build_dataset/cached_esm_output"
-labels_dir = "../build_dataset/pdb_clusters_new"
 
-lengths = (1000, 100, 100)  # train, validate, test
+def run_training(model,
+                 training_loader,
+                 validation_loader,
+                 optimizer,
+                 scheduler,
+                 num_epochs,
+                 writer,
+                 device,
+                 batch_accum,
+                 timestamp):
+    EPOCHS = num_epochs
+    epoch_number = 0
+    best_vloss = 1_000_000
+    for epoch in range(EPOCHS):
+        print('EPOCH {}:'.format(epoch_number + 1))
 
-dataset = data_reader.DynContactDataset(
-    data_dir=data_dir,
-    labels_dir=labels_dir,
-    cluster_indices=cluster_indices[torch.randint(len(cluster_indices), (sum(lengths),))]  # Modify for reproducibility
-)
+        # Make sure gradient tracking is on, and do a pass over the data
+        model.train(True)
+        avg_loss = train_one_epoch(
+            training_loader,
+            optimizer,
+            scheduler,
+            model,
+            epoch_number,
+            writer,
+            device=device,
+            batch_accum=batch_accum,
+        )
 
-training_set, validation_set, testing_set = torch.utils.data.random_split(dataset, lengths)
-batch_size = 4
-batch_accum = 8  # Effective batch_size = batch_size * batch_accum = 32
-training_loader = DataLoader(training_set, batch_size=batch_size, shuffle=True)
-validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=False)
+        running_vloss = 0.0
+        # Set the model to evaluation mode, disabling dropout and using population
+        # statistics for batch normalization.
+        model.eval()
 
-# Initialize model
-model = ESMDynamic(load_esmfold=False)
-model.set_chunk_size(256)
+        # Disable gradient computation and reduce memory consumption.
+        with torch.no_grad():
+            for i, vdata in enumerate(validation_loader):
+                vinputs, vlabels = vdata
 
-# Initialize optimizer and scheduler
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001, eps=1e-6)
-scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, total_iters=10)
+                voutputs = model(precomputed=vinputs)
+                vloss = loss_fn(voutputs, vlabels)
+                running_vloss += vloss
 
-# Initialize other parameters for the run
-timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-writer = SummaryWriter('runs/trainer_{}'.format(timestamp))
-epoch_number = 0
-EPOCHS = 5
-best_vloss = 1_000_000
+        avg_vloss = running_vloss / (i + 1)
+        print('LOSS train {} valid {}'.format(avg_loss, avg_vloss))
+
+        # Log the running loss averaged per batch
+        # for both training and validation
+        writer.add_scalars('Training vs. Validation Loss',
+                           {'Training': avg_loss, 'Validation': avg_vloss},
+                           epoch_number + 1)
+        writer.flush()
+
+        # Track best performance, and save the model's state
+        if avg_vloss < best_vloss:
+            best_vloss = avg_vloss
+            model_path = 'model_{}_{}'.format(timestamp, epoch_number)
+            torch.save(model.state_dict(), model_path)
+
+        epoch_number += 1
 
 
-# Training loop
-for epoch in range(EPOCHS):
-    print('EPOCH {}:'.format(epoch_number + 1))
-
-    # Make sure gradient tracking is on, and do a pass over the data
-    model.train(True)
-    avg_loss = train_one_epoch(epoch_number, writer)
-
-    running_vloss = 0.0
-    # Set the model to evaluation mode, disabling dropout and using population
-    # statistics for batch normalization.
-    model.eval()
-
-    # Disable gradient computation and reduce memory consumption.
-    with torch.no_grad():
-        for i, vdata in enumerate(validation_loader):
-            vinputs, vlabels = vdata
-
-            voutputs = model(precomputed=vinputs)
-            vloss = loss_fn(voutputs, vlabels)
-            running_vloss += vloss
-
-    avg_vloss = running_vloss / (i + 1)
-    print('LOSS train {} valid {}'.format(avg_loss, avg_vloss))
-
-    # Log the running loss averaged per batch
-    # for both training and validation
-    writer.add_scalars('Training vs. Validation Loss',
-                       {'Training': avg_loss, 'Validation': avg_vloss},
-                       epoch_number + 1)
-    writer.flush()
-
-    # Track best performance, and save the model's state
-    if avg_vloss < best_vloss:
-        best_vloss = avg_vloss
-        model_path = 'model_{}_{}'.format(timestamp, epoch_number)
-        torch.save(model.state_dict(), model_path)
-
-    epoch_number += 1
+if __name__ == "__main__":
+    pass
