@@ -43,10 +43,10 @@ def get_input(cluster_id,
     # positions = torch.zeros((8, max_len, 14, 3))
     # states = torch.zeros((8, max_len, 384))
     # single = torch.zeros((max_len, 384))
-    lddt_head = torch.zeros((shape))
-    lm_logits = torch.zeros((shape))
-    ptm_logits = torch.zeros((shape))
-    distogram_logits = torch.zeros((shape))
+    lddt_head = torch.zeros((8, max_len, 37, 50)) # 8 = states, 37 = seq_transition, 50 = esmfold.lddt_bins
+    lm_logits = torch.zeros((max_len, 23)) # 23 = esmfold.n_tokens_embed
+    ptm_logits = torch.zeros((max_len, max_len, 64)) # 64 = esmfold.distogram_bins
+    distogram_logits = torch.zeros((max_len, max_len, 128)) # 128 = esmfold.cfg.trunk.pairwise_state_dim
 
     if crop_id is None:
         crop_id = 0
@@ -66,9 +66,9 @@ def get_input(cluster_id,
     # states[:, :L, :] = cached_data['states'][:, 0, :, :]
     # single[:L, :] = cached_data['single']
     lddt_head[:, :L, :, :] = cached_data['lddt_head']
-    lm_logits[:L, shape] = cached_data['lm_logits']
-    ptm_logits[:L, shape] = cached_data['ptm_logits']
-    distogram_logits[:L, shape] = cached_data['distogram_logits']
+    lm_logits[:L, :] = cached_data['lm_logits']
+    ptm_logits[:L, :L, :] = cached_data['ptm_logits']
+    distogram_logits[:L, :L, :] = cached_data['distogram_logits']
 
     return dict(
         s_s=s_s,
@@ -94,7 +94,7 @@ def fix_dim_order(batch_data):
     """For certain keys batch dimension should be dim1 instead dim0.
     """
     # Keys to modify
-    change_keys = {"lddt_head", "distogram_logits"}
+    change_keys = {"lddt_head"}
     # Dim order change auxiliary function
     change_dims = lambda x: torch.transpose(x, 1, 0)
 
