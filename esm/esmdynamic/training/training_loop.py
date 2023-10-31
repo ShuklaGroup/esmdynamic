@@ -13,62 +13,68 @@ from torch.utils.tensorboard import SummaryWriter
 
 from esm.esmdynamic.esmdynamic import ESMDynamic
 from esm.esmdynamic.loss import full_form_loss as loss_fn
+from esm.esmdynamic.loss import get_accuracy_metrics
 from esm.esmdynamic.training import data_reader
 
 
-def cast_bfloat16(batch_labels):
-    """Cast batch of labels to bfloat16.
-    """
-    # Keys to modify
-    change_keys = {"dynamic_contacts", "rmsd"}
-    # Cast auxiliary function
-    cast_bfloat16 = lambda x: x.bfloat16()
+# def cast_bfloat16(batch_labels):
+#     """Cast batch of labels to bfloat16.
+#     """
+#     # Keys to modify
+#     change_keys = {"dynamic_contacts", "rmsd"}
+#     # Cast auxiliary function
+#     cast_bfloat16 = lambda x: x.bfloat16()
+#
+#     batch_labels = {
+#         k: cast_bfloat16(v) if k in change_keys else v for k, v in batch_labels.items()
+#     }
+#
+#     return batch_labels
 
-    batch_labels = {
-        k: cast_bfloat16(v) if k in change_keys else v for k, v in batch_labels.items()
-    }
-
-    return batch_labels
 
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("cluster_indices",
+    parser.add_argument("--cluster_indices",
                         type=str,
                         help="Path to cluster indices file.",
                         required=True)
-    parser.add_argument("data_dir",
+    parser.add_argument("--data_dir",
                         type=str,
                         help="Path to input data.",
                         required=True)
-    parser.add_argument("labels_dir",
+    parser.add_argument("--labels_dir",
                         type=str,
                         help="Path to labels.",
                         required=True)
-    parser.add_argument("outpath",
+    parser.add_argument("--outpath",
                         type=str,
                         help="Path where output will be stored.",
                         required=True)
-    parser.add_argument("batch_size",
+    parser.add_argument("--batch_size",
                         type=int,
                         help="Batch size.",
                         default=1)
-    parser.add_argument("batch_accum",
+    parser.add_argument("--batch_accum",
                         type=int,
-                        help="Number of batches to accumulate before update.")
-    parser.add_argument("epochs",
+                        help="Number of batches to accumulate before update.",
+                        default=1)
+    parser.add_argument("--epochs",
                         type=int,
-                        help="Number of epochs.")
-    parser.add_argument("split_lengths",
+                        help="Number of epochs.",
+                        default=1)
+    parser.add_argument("--split_lengths",
                         type=int,
                         nargs="+",
-                        help="Train, val, test samples.")
-    parser.add_argument("pretrained",
+                        help="Train, val, test samples.",
+                        default=None)
+    parser.add_argument("--pretrained",
                         type=str,
-                        help="Path to pretrained model.")
-    parser.add_argument("device",
+                        help="Path to pretrained model.",
+                        default=None)
+    parser.add_argument("--device",
                         type=str,
                         help="Training will run here.",
-                        default="cpu")
+                        default="cuda")
 
     return parser.parse_args()
 
@@ -101,7 +107,7 @@ def init_data_loaders(training_set, validation_set, batch_size=1):
     return training_loader, validation_loader
 
 
-def init_model(chunk_size=256, device="cpu", pretrained=None):
+def init_model(chunk_size=256, device="cuda", pretrained=None):
     model = ESMDynamic(load_esmfold=False)
     if pretrained:
         model.load_state_dict(torch.load(pretrained))
@@ -114,7 +120,7 @@ def init_model(chunk_size=256, device="cpu", pretrained=None):
 
 def init_optimizer(model, num_epochs, lr=0.001, eps=1e-6):
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, eps=eps)
-    total_iters = int(num_epochs*0.1)
+    total_iters = int(num_epochs * 0.1)
     scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.1, total_iters=total_iters)
     return optimizer, scheduler
 
@@ -122,7 +128,7 @@ def init_optimizer(model, num_epochs, lr=0.001, eps=1e-6):
 def init_writer(outpath):
     # Initialize other parameters for the run
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    writer = SummaryWriter(os.path.join(outpath, "trainer_{}".format(timestamp)))
+    writer = SummaryWriter(os.path.join(outpath, "runs", "trainer_{}".format(timestamp)))
     return timestamp, writer
 
 
@@ -146,11 +152,17 @@ def train_one_epoch(training_loader,
         optimizer.zero_grad()
 
         # Make predictions for this batch
-        with torch.autocast(device_type=device, dtype=torch.bfloat16):
-            outputs = model(precomputed=inputs)
-            labels = cast_bfloat16(labels)
-            # Compute the loss and its gradients
-            loss = loss_fn(outputs, labels) / batch_accum
+        if device == "cpu":
+            with torch.autocast(device_type=device, dtype=torch.bfloat16):
+                outputs = model(precomputed=inputs)
+                # labels = cast_bfloat16(labels)
+                # Compute the loss and its gradients
+                loss = loss_fn(outputs, labels) / batch_accum
+        elif device == "cuda":
+            with torch.autocast(device_type=device):
+                outputs = model(precomputed=inputs)
+                # Compute the loss and its gradients
+                loss = loss_fn(outputs, labels) / batch_accum
 
         loss.backward()
 
@@ -161,11 +173,16 @@ def train_one_epoch(training_loader,
 
             # Gather data and report
             running_loss += loss.item()
+            rmsd_acc, dyn_cont_acc, dyn_cont_tpr, dyn_cont_f1s = get_accuracy_metrics(outputs, labels)
             if (i + 1) % (batch_accum * 1) == 0:
                 last_loss = running_loss  # loss per batch
                 print('  batch {} loss: {}'.format(i + 1, last_loss))
                 tb_x = epoch_index * len(training_loader) + i + 1
                 tb_writer.add_scalar('Loss/train', last_loss, tb_x)
+                tb_writer.add_scalar('(RMSD) Accuracy/train', rmsd_acc, tb_x)
+                tb_writer.add_scalar('(DynCont) Accuracy/train', dyn_cont_acc, tb_x)
+                tb_writer.add_scalar('(DynCont) TPR/train', dyn_cont_tpr, tb_x)
+                tb_writer.add_scalar('(DynCont) F1 Score/train', dyn_cont_f1s, tb_x)
                 running_loss = 0.
 
     return last_loss
@@ -208,14 +225,26 @@ def run_training(model,
 
         # Disable gradient computation and reduce memory consumption.
         with torch.no_grad():
+            rmsd_acc_avg, dyn_cont_acc_avg, dyn_cont_tpr_avg, dyn_cont_f1s_avg = 0., 0., 0., 0.
             for i, vdata in enumerate(validation_loader):
                 vinputs, vlabels = vdata
                 vinputs = data_reader.fix_dim_order(vinputs)
                 voutputs = model(precomputed=vinputs)
                 vloss = loss_fn(voutputs, vlabels)
                 running_vloss += vloss
+                rmsd_acc, dyn_cont_acc, dyn_cont_tpr, dyn_cont_f1s = get_accuracy_metrics(voutputs, vlabels)
+                rmsd_acc_avg += rmsd_acc
+                dyn_cont_acc_avg += dyn_cont_acc_avg
+                dyn_cont_tpr_avg += dyn_cont_tpr
+                dyn_cont_f1s_avg += dyn_cont_f1s
+
 
         avg_vloss = running_vloss / (i + 1)
+        rmsd_acc_avg /= (i + 1)
+        dyn_cont_acc_avg /= (i + 1)
+        dyn_cont_tpr_avg /= (i + 1)
+        dyn_cont_f1s_avg /= (i + 1)
+
         print('LOSS train {} valid {}'.format(avg_loss, avg_vloss))
 
         # Log the running loss averaged per batch
@@ -223,6 +252,11 @@ def run_training(model,
         writer.add_scalars('Training vs. Validation Loss',
                            {'Training': avg_loss, 'Validation': avg_vloss},
                            epoch_number + 1)
+        # Log validation accuracy
+        writer.add_scalar('(RMSD) Accuracy/val', rmsd_acc_avg, epoch_number + 1)
+        writer.add_scalar('(DynCont) Accuracy/val', dyn_cont_acc_avg, epoch_number + 1)
+        writer.add_scalar('(DynCont) TPR/val', dyn_cont_tpr_avg, epoch_number + 1)
+        writer.add_scalar('(DynCont) F1 Score/val', dyn_cont_f1s_avg, epoch_number + 1)
         writer.flush()
 
         # Track best performance, and save the model's state
@@ -235,9 +269,8 @@ def run_training(model,
 
 
 if __name__ == "__main__":
-
     args = get_args()
-    assert(len(args.split_lengths) == 3)
+    assert (len(args.split_lengths) == 3)
     training_set, validation_set, testing_set = init_datasets(args.cluster_indices,
                                                               args.data_dir,
                                                               args.labels_dir,
@@ -260,5 +293,3 @@ if __name__ == "__main__":
                  args.device,
                  args.batch_accum,
                  timestamp)
-
-
