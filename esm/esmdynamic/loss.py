@@ -98,3 +98,33 @@ def full_form_loss(
 
     return (filtered_loss_rmsd.sum() / protein_lengths.sum() +
             filtered_loss_dyn_contacts.sum() / torch.square(protein_lengths).sum())
+
+
+def get_accuracy_metrics(pred, labels):
+    """Useful metrics to track model performance.
+    """
+    rmsd_pred = torch.argmax(pred["rmsd_prob"], dim=1)
+    rmsd_label = torch.argmax(labels["rmsd"], dim=1)
+    dynamic_contact_pred = pred["dynamic_contact_pred"]
+    dynamic_contact_label = labels["dynamic_contacts"]
+    prot_lengths = labels["protein_lengths"]
+
+    correct = 0
+    for p, l, length in zip(rmsd_pred, rmsd_label, prot_lengths):
+        correct += torch.sum(p[:length] == l[:length])
+    rmsd_acc = correct / prot_lengths.sum()
+
+    tp = 0
+    tn = 0
+    fp = 0
+    fn = 0
+    for p, l, length in zip(dynamic_contact_pred, dynamic_contact_label, prot_lengths):
+        tp += torch.sum(torch.logical_and((p[0, :length, :length] == 1), (l[0, :length, :length] == 1)))
+        tn += torch.sum(torch.logical_and((p[0, :length, :length] == 0), (l[0, :length, :length] == 0)))
+        fp += torch.sum(torch.logical_and((p[0, :length, :length] == 1), (l[0, :length, :length] == 0)))
+        fn += torch.sum(torch.logical_and((p[0, :length, :length] == 0), (l[0, :length, :length] == 1)))
+    dyn_cont_acc = (tp + tn) / (tp + tn + fp + fn)
+    dyn_cont_tpr = (tp) / (tp + fn)
+    dyn_cont_f1s = (2*tp) / (2*tp + fp + fn)
+
+    return rmsd_acc, dyn_cont_acc, dyn_cont_tpr, dyn_cont_f1s
