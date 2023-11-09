@@ -87,7 +87,7 @@ def full_form_loss(
     loss_rmsd = binned_cross_entropy(
         rmsd_logits,
         rmsd_target,
-        bin_vals=rmsd_vals,
+        bin_vals=rmsd_vals.to(rmsd_logits.device),
         reduction="none",
     )
 
