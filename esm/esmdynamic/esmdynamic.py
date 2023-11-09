@@ -143,14 +143,14 @@ class ESMDynamic(nn.Module):
         lm_logits = structure['lm_logits']  # Shape (B, L, self.n_tokens_embed)
         seq_transition_input = torch.cat((lddt_logits, lm_logits), dim=2)  # Concatenate along dim dimension
         s_s_0 = structure['s_s'] + self.seq_transition(seq_transition_input)
-        print(s_s_0)
+        # print(s_s_0)
 
         # Combine ptm_logits and distogram_logits to bias s_z
         ptm_logits = structure['ptm_logits']
         distogram_logits = structure['distogram_logits']
         pair_transition_input = torch.cat((ptm_logits, distogram_logits), dim=3)  # Concatenate along dim dimension
         s_z_0 = structure['s_z'] + self.pair_transition(pair_transition_input)
-        print(s_z_0)
+        # print(s_z_0)
         # Run through dynamic contact module
         dynamic_module_output = self.dynamic_module(s_s_0,
                                                     s_z_0,
@@ -158,6 +158,7 @@ class ESMDynamic(nn.Module):
                                                     structure['mask'],
                                                     no_recycles=num_recycles
                                                     )
+        print(dynamic_module_output)
         # dynamic_module_output += dynamic_module_output.T  # Symmetrize the output
         structure['dynamic_module_output'] = dynamic_module_output
 
