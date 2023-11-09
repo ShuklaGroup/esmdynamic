@@ -47,7 +47,7 @@ class ESMDynamic(nn.Module):
     def __init__(self, load_esmfold=True, esmdynamic_config=None, **kwargs):
         super().__init__()
 
-        self.rmsd_vals = rmsd_vals.unsqueeze(1)
+        self.register_buffer('rmsd_vals', rmsd_vals.unsqueeze(1))
 
         esmdynamic_config = esmdynamic_config if esmdynamic_config else OmegaConf.structured(ESMDynamicConfig(**kwargs))
         self.cfg = esmdynamic_config
