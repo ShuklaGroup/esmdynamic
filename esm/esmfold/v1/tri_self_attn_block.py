@@ -135,9 +135,11 @@ class TriangularSelfAttentionBlock(nn.Module):
         y, _ = self.seq_attention(y, mask=mask, bias=bias)
         sequence_state = sequence_state + self.drop(y)
         sequence_state = self.mlp_seq(sequence_state)
+        print(sequence_state)
 
         # Update pairwise state
         pairwise_state = pairwise_state + self.sequence_to_pair(sequence_state)
+        print(pairwise_state)
 
         # Axial attention with triangular bias.
         tri_mask = mask.unsqueeze(2) * mask.unsqueeze(1) if mask is not None else None
