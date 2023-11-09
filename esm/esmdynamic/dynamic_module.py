@@ -102,6 +102,8 @@ class DynamicModule(nn.Module):
             z = z + self.pairwise_positional_embedding(residx, mask=mask)
 
             for block in self.blocks:
+                print(s)
+                print(z)
                 s, z = block(s, z, mask=mask, residue_index=residx, chunk_size=self.chunk_size)
             return s, z
 
