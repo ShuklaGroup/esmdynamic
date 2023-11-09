@@ -155,7 +155,7 @@ class TriangularSelfAttentionBlock(nn.Module):
         pairwise_state = pairwise_state + self.row_drop(
             self.tri_att_start(pairwise_state, mask=tri_mask, chunk_size=chunk_size)
         )
-        print("Tri_att_start:", pairwise_state)
+        print("Tri_att_start:", pairwise_state.shape, pairwise_state)
         pairwise_state = pairwise_state + self.col_drop(
             self.tri_att_end(pairwise_state, mask=tri_mask, chunk_size=chunk_size)
         )
