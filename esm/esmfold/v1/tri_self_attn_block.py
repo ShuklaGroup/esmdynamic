@@ -156,12 +156,9 @@ class TriangularSelfAttentionBlock(nn.Module):
         pairwise_state = pairwise_state + self.row_drop(
             self.tri_att_start(pairwise_state, mask=tri_mask, chunk_size=chunk_size)
         )
-        pairwise_state[torch.where(tri_mask==0)] = 0.
+        pairwise_state[torch.where(tri_mask==0)] = 0. # Zero out masked entries
         print("Tri_att_start:", pairwise_state.shape,
               pairwise_state)
-        assert (False)
-        # print("Tri_att_start:", pairwise_state[~torch.any(pairwise_state.isnan(), dim=1)].shape,
-        #       pairwise_state[~torch.any(pairwise_state.isnan(), dim=1)])
         pairwise_state = pairwise_state + self.col_drop(
             self.tri_att_end(pairwise_state, mask=tri_mask, chunk_size=chunk_size)
         )
@@ -169,5 +166,5 @@ class TriangularSelfAttentionBlock(nn.Module):
         # MLP over pairs.
         pairwise_state = self.mlp_pair(pairwise_state)
         print("Pair MLP:", pairwise_state)
-
+        assert (False)
         return sequence_state, pairwise_state
