@@ -80,7 +80,7 @@ def full_form_loss(
         gamma=gamma,
         reduction="none",
     )
-    print("Sigmoid focal:", loss_dyn_contact)
+    print("Sigmoid focal:", torch.any(torch.isnan(loss_dyn_contact)))
 
     rmsd_logits = inputs['rmsd_logits']
     rmsd_target = target['rmsd']
