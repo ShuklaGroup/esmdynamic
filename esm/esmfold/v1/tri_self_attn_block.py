@@ -152,11 +152,13 @@ class TriangularSelfAttentionBlock(nn.Module):
             self.tri_mul_in(pairwise_state, mask=tri_mask)
         )
         print("Tri_mul_in:", pairwise_state)
+        print("Tri_mask:", tri_mask)
         pairwise_state = pairwise_state + self.row_drop(
             self.tri_att_start(pairwise_state, mask=tri_mask, chunk_size=chunk_size)
         )
         print("Tri_att_start:", pairwise_state.shape,
               pairwise_state)
+        assert (False)
         # print("Tri_att_start:", pairwise_state[~torch.any(pairwise_state.isnan(), dim=1)].shape,
         #       pairwise_state[~torch.any(pairwise_state.isnan(), dim=1)])
         pairwise_state = pairwise_state + self.col_drop(
