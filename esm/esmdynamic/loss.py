@@ -31,8 +31,11 @@ def binned_cross_entropy(
         Loss tensor with the reduction option applied.
     """
     ce_loss = nn.functional.cross_entropy(inputs, targets, reduction="none")  # Check output
+    print("CE loss:", ce_loss)
     p = nn.functional.softmax(inputs, dim=-1)
+    print("CE loss - prob:", p)
     bin_values = bin_vals[torch.argmax(p, dim=1)]
+    print("CE loss - bin_values:", bin_values)
     target_bin_values = bin_vals[torch.argmax(targets, dim=1)]
     loss = torch.sqrt(torch.square(bin_values - target_bin_values)) + ce_loss
 
@@ -46,7 +49,7 @@ def binned_cross_entropy(
         raise ValueError(
             f"Invalid Value for arg 'reduction': '{reduction} \n Supported reduction modes: 'none', 'mean', 'sum'"
         )
-
+    print("CE loss - final:", loss)
     return loss
 
 
