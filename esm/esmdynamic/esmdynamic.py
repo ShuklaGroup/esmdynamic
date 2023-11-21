@@ -158,7 +158,7 @@ class ESMDynamic(nn.Module):
                                                     structure['mask'],
                                                     no_recycles=num_recycles
                                                     )
-        print(dynamic_module_output)
+        print(torch.any(torch.isnan(dynamic_module_output['s_z'])))
         # dynamic_module_output += dynamic_module_output.T  # Symmetrize the output
         structure['dynamic_module_output'] = dynamic_module_output
 
