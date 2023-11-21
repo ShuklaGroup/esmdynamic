@@ -158,12 +158,13 @@ class ESMDynamic(nn.Module):
                                                     structure['mask'],
                                                     no_recycles=num_recycles
                                                     )
-        print(torch.any(torch.isnan(dynamic_module_output['s_z'])))
+
         # dynamic_module_output += dynamic_module_output.T  # Symmetrize the output
         structure['dynamic_module_output'] = dynamic_module_output
 
         # Predict dynamic contact probability from pair features
         dynamic_contact_logits = self.resnet_dynamic_contacts(self.rearrange_pair(dynamic_module_output['s_z']))
+        print(torch.any(torch.isnan(dynamic_contact_logits)))
         # dynamic_contact_logits = self.rearrange_pair_reverse(dynamic_contact_logits)
         structure['dynamic_contact_logits'] = dynamic_contact_logits
         dynamic_contact_prob = torch.sigmoid(dynamic_contact_logits)
