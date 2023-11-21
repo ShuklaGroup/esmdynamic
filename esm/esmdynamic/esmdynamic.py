@@ -164,7 +164,7 @@ class ESMDynamic(nn.Module):
 
         # Predict dynamic contact probability from pair features
         dynamic_contact_logits = self.resnet_dynamic_contacts(self.rearrange_pair(dynamic_module_output['s_z']))
-        print(torch.any(torch.isnan(dynamic_contact_logits)))
+
         # dynamic_contact_logits = self.rearrange_pair_reverse(dynamic_contact_logits)
         structure['dynamic_contact_logits'] = dynamic_contact_logits
         dynamic_contact_prob = torch.sigmoid(dynamic_contact_logits)
@@ -197,6 +197,7 @@ class ESMDynamic(nn.Module):
 
         # Predict RMSD
         structure['rmsd_logits'] = self.rmsd_dilated_convnet(self.rearrange_seq(dynamic_module_output['s_s']))
+        print(torch.any(torch.isnan(structure['rmsd_logits'])))
         structure['rmsd_prob'] = nn.functional.softmax(structure['rmsd_logits'], dim=1)
         # Bins will be used in a cross entropy loss function --> Use logits
         # structure['rmsd_bins'] = torch.unsqueeze(torch.argmax(structure['rmsd_prob'], dim=2), dim=2)
