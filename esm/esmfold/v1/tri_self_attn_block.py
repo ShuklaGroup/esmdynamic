@@ -162,6 +162,7 @@ class TriangularSelfAttentionBlock(nn.Module):
         pairwise_state = pairwise_state + self.col_drop(
             self.tri_att_end(pairwise_state, mask=tri_mask, chunk_size=chunk_size)
         )
+        pairwise_state[torch.where(tri_mask == 0)] = 0.  # Zero out masked entries
         print("Tri_att_end:", pairwise_state)
         # MLP over pairs.
         pairwise_state = self.mlp_pair(pairwise_state)
