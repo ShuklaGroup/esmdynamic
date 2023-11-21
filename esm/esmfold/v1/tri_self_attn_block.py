@@ -156,7 +156,7 @@ class TriangularSelfAttentionBlock(nn.Module):
         pairwise_state = pairwise_state + self.row_drop(
             self.tri_att_start(pairwise_state, mask=tri_mask, chunk_size=chunk_size)
         )
-        # pairwise_state[] = zero_out_masked(pairwise_state)
+        pairwise_state[torch.where(tri_mask==0)] = 0.
         print("Tri_att_start:", pairwise_state.shape,
               pairwise_state)
         assert (False)
