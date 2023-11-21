@@ -80,7 +80,6 @@ def full_form_loss(
         gamma=gamma,
         reduction="none",
     )
-    print("Sigmoid focal:", torch.any(torch.isnan(loss_dyn_contact)))
 
     rmsd_logits = inputs['rmsd_logits']
     rmsd_target = target['rmsd']
@@ -95,7 +94,9 @@ def full_form_loss(
 
     filtered_loss_dyn_contacts = filter_dyn_contacts_loss(loss_dyn_contact, protein_lengths)
     filtered_loss_rmsd = filter_rmsd_loss(loss_rmsd, protein_lengths)
-
+    final_loss = (filtered_loss_rmsd.sum() / protein_lengths.sum() +
+            filtered_loss_dyn_contacts.sum() / torch.square(protein_lengths).sum())
+    print(final_loss)
     return (filtered_loss_rmsd.sum() / protein_lengths.sum() +
             filtered_loss_dyn_contacts.sum() / torch.square(protein_lengths).sum())
 
