@@ -68,6 +68,7 @@ def full_form_loss(
         target,
         alpha=0.25,
         gamma=2,
+        l=0.5,
 ) -> torch.Tensor:
     """Loss for ESMDynamic model.
     """
@@ -96,9 +97,9 @@ def full_form_loss(
     filtered_loss_rmsd = filter_rmsd_loss(loss_rmsd, protein_lengths)
     final_loss = (filtered_loss_rmsd.sum() / protein_lengths.sum() +
             filtered_loss_dyn_contacts.sum() / torch.square(protein_lengths).sum())
-    print(final_loss)
-    return (filtered_loss_rmsd.sum() / protein_lengths.sum() +
-            filtered_loss_dyn_contacts.sum() / torch.square(protein_lengths).sum())
+    
+    return ((1-l)*filtered_loss_rmsd.sum() +
+            l*filtered_loss_dyn_contacts.sum())
 
 
 def get_accuracy_metrics(pred, labels):
@@ -126,6 +127,7 @@ def get_accuracy_metrics(pred, labels):
         fn += torch.sum(torch.logical_and((p[0, :length, :length] == 0), (l[0, :length, :length] == 1)))
     dyn_cont_acc = (tp + tn) / (tp + tn + fp + fn)
     dyn_cont_tpr = (tp) / (tp + fn)
+    dyn_cont_prec = tp / (tp + fp)
     dyn_cont_f1s = (2*tp) / (2*tp + fp + fn)
 
-    return rmsd_acc, dyn_cont_acc, dyn_cont_tpr, dyn_cont_f1s
+    return rmsd_acc, dyn_cont_acc, dyn_cont_tpr, dyn_cont_prec, dyn_cont_f1s

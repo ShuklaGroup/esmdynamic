@@ -13,10 +13,10 @@ from ..utils import rmsd_bin_boundaries
 
 def access_cached_output(cluster_id,
                          crop_index=0,
-                         basepath="/mnt/sdb/10-DynamicESM/build_dataset/cached_esm_output/"
+                         basepath="~/sdb/10-DynamicESM/build_dataset/cached_esm_output/"
                          ):
     """Access ESMFold cached output for a given cluster index.
-    The crop index can be specified for proteins longer than 512 residues.
+    The crop index can be specified for proteins longer than 256 residues.
     """
     cluster_path = os.path.join(basepath, "{:08d}".format(cluster_id))
     filepaths = natsorted(glob(os.path.join(cluster_path, "cached_structure_*.pt")))
@@ -24,7 +24,7 @@ def access_cached_output(cluster_id,
 
 
 def get_input(cluster_id,
-              max_len=512,
+              max_len=256,
               crop_id=None,
               c_s=1024,
               c_z=128,
@@ -129,7 +129,7 @@ def load_binned_rmsd(fpath):
 
 
 def access_labels(cluster_id,
-                  basepath="/mnt/sdb/10-DynamicESM/build_dataset/pdb_clusters_new/"
+                  basepath="~/sdb/10-DynamicESM/build_dataset/pdb_clusters_new/"
                   ):
     """Load ground-truth labels.
     Args:
@@ -139,13 +139,13 @@ def access_labels(cluster_id,
     cluster_path = os.path.join(basepath, "{:08d}".format(cluster_id))
     rmsd_fpath = os.path.join(cluster_path, "rmsd_binned.pt")
     rmsd = load_binned_rmsd(rmsd_fpath)
-    dyncon_fpath = os.path.join(cluster_path, "dynamic_contacts.pt")
+    dyncon_fpath = os.path.join(cluster_path, "dynamic_contacts_lower_upper_margins.pt")
     dynamic_contacts = load_dynamic_contacts(dyncon_fpath)
 
     return dynamic_contacts, rmsd
 
 
-def get_crop_start_end(protein_length, crop_id, max_len=512, overlap=256):
+def get_crop_start_end(protein_length, crop_id, max_len=256, overlap=128):
     """
     Calculate the start and end indices for a crop of a protein.
     """
@@ -167,7 +167,7 @@ def get_crop_start_end(protein_length, crop_id, max_len=512, overlap=256):
 
 
 def get_labels(cluster_id,
-               max_len=512,
+               max_len=256,
                crop_id=None,
                rmsd_bin_number=len(rmsd_bin_boundaries) + 1,
                labels_dirpath=""
@@ -193,13 +193,13 @@ def get_labels(cluster_id,
 
 
 def get_input_labels(cluster_id,
-                     max_len=512,
+                     max_len=256,
                      crop_id=None,
                      data_dirpath="",
                      labels_dirpath="",
                      ):
     inputs = get_input(cluster_id,
-                       max_len=512,
+                       max_len=max_len,
                        crop_id=crop_id,
                        c_s=1024,
                        c_z=128,

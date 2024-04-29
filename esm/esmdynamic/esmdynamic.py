@@ -1,4 +1,4 @@
-"""
+f"""
 ESMFold fine-tuning for dynamic contact prediction - Diego E. Kleiman (Shukla Group, UIUC).
 """
 import dataclasses
@@ -23,8 +23,8 @@ from esm.esmfold.v1.misc import (
     #     output_to_pdb,
 )
 
-from esm.esmfold.v1.esmfold import ESMFold
-from esm.esmfold.v1.trunk import FoldingTrunkConfig, StructureModuleConfig
+# from esm.esmfold.v1.esmfold import ESMFold
+# from esm.esmfold.v1.trunk import FoldingTrunkConfig, StructureModuleConfig
 
 from .utils import rmsd_vals
 from .dynamic_module import DynamicModule, DynamicModuleConfig
@@ -44,7 +44,7 @@ class ESMDynamicConfig:
 
 
 class ESMDynamic(nn.Module):
-    def __init__(self, load_esmfold=True, esmdynamic_config=None, **kwargs):
+    def __init__(self, load_esmfold=True, esmdynamic_config=None, esmfold_config=None, **kwargs):
         super().__init__()
 
         self.register_buffer('rmsd_vals', rmsd_vals.unsqueeze(1))
@@ -424,4 +424,4 @@ class ESMDynamic(nn.Module):
 
     @property
     def device(self):
-        return self.seq_transition[0].device
+        return self.rmsd_vals.device

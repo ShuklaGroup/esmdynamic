@@ -55,9 +55,9 @@ def esmfold_v1():
     return _load_model("esmfold_3B_v1")
 
 
-def esmdyamic_v0():
-    """
-    Fine-tuned model for dynamic contact prediction based on esmfold_v1.
-    """
-    # Load original parameters since I haven't run any training yet
-    return _load_model("esmfold_3B_v1", model_object=ESMDynamic)
+# def esmdyamic_v0():
+#     """
+#     Fine-tuned model for dynamic contact prediction based on esmfold_v1.
+#     """
+#     # Load original parameters since I haven't run any training yet
+#     return _load_model("esmfold_3B_v1", model_object=ESMDynamic)

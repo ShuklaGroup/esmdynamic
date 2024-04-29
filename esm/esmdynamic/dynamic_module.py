@@ -18,7 +18,7 @@ from esm.esmfold.v1.tri_self_attn_block import TriangularSelfAttentionBlock
 @dataclass
 class DynamicModuleConfig:
     _name: str = "DynamicModuleConfig"
-    num_blocks: int = 2
+    num_blocks: int = 10
 
     # Identical to FoldingTrunkConfig
     sequence_state_dim: int = 1024
