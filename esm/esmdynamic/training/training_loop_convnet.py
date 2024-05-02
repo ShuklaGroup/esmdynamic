@@ -25,11 +25,6 @@ def get_accuracy_metrics(pred, labels):
     dynamic_contact_label = labels["dynamic_contacts"]
     prot_lengths = labels["protein_lengths"]
 
-    correct = 0
-    for p, l, length in zip(rmsd_pred, rmsd_label, prot_lengths):
-        correct += torch.sum(p[:length] == l[:length])
-    rmsd_acc = correct / prot_lengths.sum()
-
     tp = 0
     tn = 0
     fp = 0
@@ -215,7 +210,6 @@ def train_one_epoch(training_loader,
                     batch_accum=1,
                     alpha=0.25,
                     gamma=2,
-                    loss_balance=0.5,
                    ):
     running_loss = 0.
     last_loss = 0.
@@ -234,7 +228,13 @@ def train_one_epoch(training_loader,
                 outputs = model(precomputed=inputs)
                 labels = cast_bfloat16(labels)
                 # Compute the loss and its gradients
-                loss = loss_fn(outputs, labels) / batch_accum
+                loss = sigmoid_focal_loss(
+                	outputs['dynamic_contact_logits'], 
+                	labels['dynamic_contacts'], 
+                	alpha=alpha, 
+                	gamma=gamma, 
+                	reduction="sum")
+                loss /= batch_accum
         elif device == "cuda":
             with torch.autocast(device_type=device, dtype=torch.bfloat16):
                 inputs = {k: v.to(device='cuda') for k, v in inputs.items()}
@@ -306,7 +306,6 @@ def run_training(model,
             batch_accum=batch_accum,
             alpha=alpha,
             gamma=gamma,
-            loss_balance=loss_balance,
         )
 
         running_vloss = 0.0
@@ -316,7 +315,7 @@ def run_training(model,
 
         # Disable gradient computation and reduce memory consumption.
         with torch.no_grad():
-            dyn_cont_acc_avg, dyn_cont_tpr_avg, dyn_cont_prec_avg, dyn_cont_f1s_avg = 0., 0., 0., 0., 0.
+            dyn_cont_acc_avg, dyn_cont_tpr_avg, dyn_cont_prec_avg, dyn_cont_f1s_avg = 0., 0., 0., 0.
             for i, vdata in enumerate(validation_loader):
                 vinputs, vlabels = vdata
                 if device == "cuda":
@@ -324,7 +323,12 @@ def run_training(model,
                     vlabels = {k: v.to(device='cuda') for k, v in vlabels.items()}
                 vinputs = data_reader.fix_dim_order(vinputs)
                 voutputs = model(precomputed=vinputs)
-                vloss = loss_fn(voutputs, vlabels)
+                vloss = sigmoid_focal_loss(
+                	voutputs['dynamic_contact_logits'], 
+                	vlabels['dynamic_contacts'], 
+                	alpha=alpha, 
+                	gamma=gamma, 
+                	reduction="sum")
                 running_vloss += vloss
                 dyn_cont_acc, dyn_cont_tpr, dyn_cont_prec, dyn_cont_f1s = get_accuracy_metrics(voutputs, vlabels)
                 dyn_cont_acc_avg += dyn_cont_acc_avg
@@ -358,6 +362,10 @@ def run_training(model,
             best_vloss = avg_vloss
             model_path = os.path.join(outpath, "model_{}_{}".format(timestamp, epoch_number))
             torch.save(model.state_dict(), model_path)
+
+        # Save last model
+        model_path = os.path.join(outpath, "model_{}_{}_last".format(timestamp, epoch_number))
+        torch.save(model.state_dict(), model_path)
 
         epoch_number += 1
 

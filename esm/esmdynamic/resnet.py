@@ -57,7 +57,7 @@ class ResNet(nn.Module):
     ResNet for conditional probability prediction.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, cfg=None, **kwargs):
         """
         Inputs:
             config: dataclass encapsulating parameters.
@@ -69,7 +69,7 @@ class ResNet(nn.Module):
         """
         super(ResNet, self).__init__()
 
-        self.cfg = ResNetConfig(**kwargs)
+        self.cfg = cfg if (cfg is not None) else ResNetConfig(**kwargs)
         in_channels = self.cfg.in_channels
         layer_dimensions = self.cfg.layer_dimensions
         res_block_num = self.cfg.res_block_num

@@ -136,6 +136,12 @@ class ESMDynamic(nn.Module):
                 structure = precomputed
                 # structure = self._structure_from_trunk_output(structure) --> No longer necessary
 
+        if mask is None:
+            mask = torch.ones_like(aa)
+            structure['mask'] = mask
+        else:
+            structure['mask'] = mask
+
         # Combine output from lddt_head and lm_logits to bias s_s
         lddt_logits = structure['lddt_head'][-1]  # Use last state
         lddt_logits = lddt_logits.reshape(*lddt_logits.shape[:2],
@@ -172,29 +178,6 @@ class ESMDynamic(nn.Module):
         structure['dynamic_contact_pred'] = torch.where(structure['dynamic_contact_prob'] > 0.5, 1, 0).long()  # 0.5
         # threshold
 
-        # Predict conditional probabilities
-        # cond_probability_input = self.cond_prob_transition(self.rearrange_pair_reverse(dynamic_contact_logits)) \
-        #                          + dynamic_module_output['s_z']
-        # conditional_prob_logits = self.resnet_conditional_prob(self.rearrange_pair(cond_probability_input))
-        # # conditional_prob_logits = self.rearrange_pair_reverse(conditional_probabilities)
-        # structure['conditional_prob_logits'] = conditional_prob_logits
-        # structure['conditional_prob_prob'] = nn.functional.softmax(conditional_prob_logits, dim=1)
-
-        #  "Categorical mixture" definition for the predictions
-        # structure['conditional_prob_pred'] = (self.rearrange_pair_reverse(structure['conditional_prob_prob'])
-        #                                       @ self.prob_bins_vals).squeeze(-1)
-
-        # We set the entries that don't correspond to dynamic contacts to NaN because negative predictions don't have a
-        # defined conditional probability.
-        # In the loss function, we do not consider the conditional probabilities for residue-residue distances that are
-        # not classified as dynamic contacts.
-        # Bins will be used with a cross entropy loss function --> Use ignore indices instead
-        # structure['conditional_prob_bins'] = torch.where(dynamic_contact_prob > 0.5, 1, torch.nan) * \
-        #                                      torch.unsqueeze(
-        #                                          torch.argmax(structure['conditional_prob_prob'], dim=3),
-        #                                          dim=3
-        #                                      )
-
         # Predict RMSD
         structure['rmsd_logits'] = self.rmsd_dilated_convnet(self.rearrange_seq(dynamic_module_output['s_s']))
         structure['rmsd_prob'] = nn.functional.softmax(structure['rmsd_logits'], dim=1)
@@ -204,6 +187,51 @@ class ESMDynamic(nn.Module):
         structure['rmsd_pred'] = (self.rearrange_seq_reverse(structure['rmsd_prob']) @ self.rmsd_vals).squeeze(-1)
 
         return structure
+
+    def predict_from_seqs(
+            self, 
+            sequences: T.Union[str, T.List[str]],
+            residx: T.Optional[torch.Tensor] = None,
+            masking_pattern: T.Optional[torch.Tensor] = None,
+            num_recycles: T.Optional[int] = None,
+            residue_index_offset: T.Optional[int] = 512,
+            chain_linker: T.Optional[str] = "G" * 25
+    ):
+        """Predict from sequences directly.
+
+        Args:
+            sequences (Union[str, List[str]]): amino acid sequences.
+            residx (torch.Tensor): Residue indices of amino acids. Will assume contiguous if not provided.
+            masking_pattern (torch.Tensor): Optional masking to pass to the input. Binary tensor of the
+                same size as `aa`.
+            num_recycles (int): How many recycle iterations to perform. If None, defaults to training max
+                recycles, which is 3.
+            residue_index_offset (int): Residue index separation between chains if predicting a multimer. Has no effect on
+                single chain predictions. Default: 512.
+            chain_linker (str): Linker to use between chains if predicting a multimer. Has no effect on single chain
+                predictions. Default: length-25 poly-G ("G" * 25).
+
+        Returns:
+            structure (dict): dictionary containing all predictions.
+        """
+        
+        if isinstance(sequences, str):
+            sequences = [sequences]
+
+        aatype, mask, _residx, linker_mask, chain_index = batch_encode_sequences(
+            sequences, residue_index_offset, chain_linker
+        )
+
+        if residx is None:
+            residx = _residx
+        elif not isinstance(residx, torch.Tensor):
+            residx = collate_dense_tensors(residx)
+
+        aatype, mask, residx, linker_mask = map(
+            lambda x: x.to(self.device), (aatype, mask, residx, linker_mask)
+        )
+
+        return self.forward(aa=aatype, mask=mask, residx=residx, masking_pattern=masking_pattern, num_recycles=num_recycles)
 
     @torch.no_grad()
     def _trunk_input_from_seqs(self, sequences: T.Union[str, T.List[str]],

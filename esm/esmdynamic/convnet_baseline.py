@@ -53,7 +53,7 @@ class ConvNet(nn.Module):
         self.cfg = cfg
         if self.cfg is None:
             self.cfg = ResNetConfig()
-        self.resnet_dynamic_contacts = SymmetricResNet(**self.cfg)
+        self.resnet_dynamic_contacts = SymmetricResNet(self.cfg)
 
     def set_chunk_size(self, chunk_size: T.Optional[int]):
         if self.load_esmfold is True:
@@ -89,7 +89,7 @@ class ConvNet(nn.Module):
         s_z_0 = structure['s_z'] + self.pair_transition(pair_transition_input)
 
         # Predict dynamic contact probability from pair features
-        dynamic_contact_logits = self.resnet_dynamic_contacts(self.rearrange_pair(dynamic_module_output['s_z']))
+        dynamic_contact_logits = self.resnet_dynamic_contacts(self.rearrange_pair(s_z_0))
         structure['dynamic_contact_logits'] = dynamic_contact_logits
         dynamic_contact_prob = torch.sigmoid(dynamic_contact_logits)
         structure['dynamic_contact_prob'] = dynamic_contact_prob
@@ -101,4 +101,3 @@ class ConvNet(nn.Module):
     def device(self):
         return self.dummy_buffer.device
 
-        
