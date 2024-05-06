@@ -126,8 +126,9 @@ def get_accuracy_metrics(pred, labels):
         fp += torch.sum(torch.logical_and((p[0, :length, :length] == 1), (l[0, :length, :length] == 0)))
         fn += torch.sum(torch.logical_and((p[0, :length, :length] == 0), (l[0, :length, :length] == 1)))
     dyn_cont_acc = (tp + tn) / (tp + tn + fp + fn)
+    dyn_cont_bal_acc = .5*(tp/(tp+fn) + tn/(tn+fp))
     dyn_cont_tpr = (tp) / (tp + fn)
     dyn_cont_prec = tp / (tp + fp)
     dyn_cont_f1s = (2*tp) / (2*tp + fp + fn)
 
-    return rmsd_acc, dyn_cont_acc, dyn_cont_tpr, dyn_cont_prec, dyn_cont_f1s
+    return rmsd_acc, dyn_cont_acc, dyn_cont_bal_acc, dyn_cont_tpr, dyn_cont_prec, dyn_cont_f1s

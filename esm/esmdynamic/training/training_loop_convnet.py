@@ -364,7 +364,7 @@ def run_training(model,
             torch.save(model.state_dict(), model_path)
 
         # Save last model
-        model_path = os.path.join(outpath, "model_{}_{}_last".format(timestamp, epoch_number))
+        model_path = os.path.join(outpath, "model_{}_latest".format(timestamp))
         torch.save(model.state_dict(), model_path)
 
         epoch_number += 1

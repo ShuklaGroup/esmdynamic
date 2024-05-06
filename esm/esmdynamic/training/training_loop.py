@@ -233,7 +233,7 @@ def train_one_epoch(training_loader,
 
             # Gather data and report
             running_loss += loss.item()
-            rmsd_acc, dyn_cont_acc, dyn_cont_tpr, dyn_cont_prec, dyn_cont_f1s = get_accuracy_metrics(outputs, labels)
+            rmsd_acc, dyn_cont_acc, dyn_cont_bal_acc, dyn_cont_tpr, dyn_cont_prec, dyn_cont_f1s = get_accuracy_metrics(outputs, labels)
             if (i + 1) % (batch_accum * 1) == 0:
                 last_loss = running_loss  # loss per batch
                 print('  batch {} loss: {}'.format(i + 1, last_loss))
@@ -241,6 +241,7 @@ def train_one_epoch(training_loader,
                 tb_writer.add_scalar('Loss/train', last_loss, tb_x)
                 tb_writer.add_scalar('(RMSD) Accuracy/train', rmsd_acc, tb_x)
                 tb_writer.add_scalar('(DynCont) Accuracy/train', dyn_cont_acc, tb_x)
+                tb_writer.add_scalar('(DynCont) Bal. Acc./train', dyn_cont_bal_acc, tb_x)
                 tb_writer.add_scalar('(DynCont) TPR/train', dyn_cont_tpr, tb_x)
                 tb_writer.add_scalar('(DynCont) Prec./train', dyn_cont_prec, tb_x)
                 tb_writer.add_scalar('(DynCont) F1 Score/train', dyn_cont_f1s, tb_x)
@@ -292,7 +293,7 @@ def run_training(model,
 
         # Disable gradient computation and reduce memory consumption.
         with torch.no_grad():
-            rmsd_acc_avg, dyn_cont_acc_avg, dyn_cont_tpr_avg, dyn_cont_prec_avg, dyn_cont_f1s_avg = 0., 0., 0., 0., 0.
+            rmsd_acc_avg, dyn_cont_acc_avg, dyn_cont_bal_acc_avg, dyn_cont_tpr_avg, dyn_cont_prec_avg, dyn_cont_f1s_avg = 0., 0., 0., 0., 0., 0.
             for i, vdata in enumerate(validation_loader):
                 vinputs, vlabels = vdata
                 if device == "cuda":
@@ -302,9 +303,10 @@ def run_training(model,
                 voutputs = model(precomputed=vinputs)
                 vloss = loss_fn(voutputs, vlabels)
                 running_vloss += vloss
-                rmsd_acc, dyn_cont_acc, dyn_cont_tpr, dyn_cont_prec, dyn_cont_f1s = get_accuracy_metrics(voutputs, vlabels)
+                rmsd_acc, dyn_cont_acc, dyn_cont_bal_acc, dyn_cont_tpr, dyn_cont_prec, dyn_cont_f1s = get_accuracy_metrics(voutputs, vlabels)
                 rmsd_acc_avg += rmsd_acc
                 dyn_cont_acc_avg += dyn_cont_acc_avg
+                dyn_cont_bal_acc_avg += dyn_cont_bal_acc
                 dyn_cont_tpr_avg += dyn_cont_tpr
                 dyn_cont_prec_avg += dyn_cont_prec
                 dyn_cont_f1s_avg += dyn_cont_f1s
@@ -313,6 +315,7 @@ def run_training(model,
         avg_vloss = running_vloss / (i + 1)
         rmsd_acc_avg /= (i + 1)
         dyn_cont_acc_avg /= (i + 1)
+        dyn_cont_bal_acc_avg /= (i + 1)
         dyn_cont_tpr_avg /= (i + 1)
         dyn_cont_prec_avg /= (i + 1)
         dyn_cont_f1s_avg /= (i + 1)
@@ -327,6 +330,7 @@ def run_training(model,
         # Log validation accuracy
         writer.add_scalar('(RMSD) Accuracy/val', rmsd_acc_avg, epoch_number + 1)
         writer.add_scalar('(DynCont) Accuracy/val', dyn_cont_acc_avg, epoch_number + 1)
+        writer.add_scalar('(DynCont) Bal. Acc./val', dyn_cont_bal_acc_avg, epoch_number + 1)
         writer.add_scalar('(DynCont) TPR/val', dyn_cont_tpr_avg, epoch_number + 1)
         writer.add_scalar('(DynCont) Prec./val', dyn_cont_prec_avg, epoch_number + 1)
         writer.add_scalar('(DynCont) F1 Score/val', dyn_cont_f1s_avg, epoch_number + 1)
@@ -337,6 +341,10 @@ def run_training(model,
             best_vloss = avg_vloss
             model_path = os.path.join(outpath, "model_{}_{}".format(timestamp, epoch_number))
             torch.save(model.state_dict(), model_path)
+
+        # Save last model
+        model_path = os.path.join(outpath, "model_{}_latest".format(timestamp))
+        torch.save(model.state_dict(), model_path)
 
         epoch_number += 1
 

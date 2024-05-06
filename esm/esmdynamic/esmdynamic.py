@@ -136,10 +136,10 @@ class ESMDynamic(nn.Module):
                 structure = precomputed
                 # structure = self._structure_from_trunk_output(structure) --> No longer necessary
 
-        if mask is None:
+        if (mask is None) and (precomputed is None):
             mask = torch.ones_like(aa)
             structure['mask'] = mask
-        else:
+        elif (precomputed is None):
             structure['mask'] = mask
 
         # Combine output from lddt_head and lm_logits to bias s_s
