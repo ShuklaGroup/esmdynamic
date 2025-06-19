@@ -12,19 +12,12 @@ from openfold.data.data_transforms import make_atom14_masks
 from openfold.utils.loss import compute_predicted_aligned_error, compute_tm
 from einops.layers.torch import Rearrange
 
-# import esm
-# from esm import Alphabet
 import esm
 from esm.esmfold.v1.categorical_mixture import categorical_lddt
-# from esm.esmfold.v1.trunk import FoldingTrunk, FoldingTrunkConfig
 from esm.esmfold.v1.misc import (
     batch_encode_sequences,
     collate_dense_tensors,
-    #     output_to_pdb,
 )
-
-# from esm.esmfold.v1.esmfold import ESMFold
-# from esm.esmfold.v1.trunk import FoldingTrunkConfig, StructureModuleConfig
 
 from .utils import rmsd_vals
 from .dynamic_module import DynamicModule, DynamicModuleConfig
@@ -35,19 +28,18 @@ from .dilated_convnet import DilatedConvNet, DilatedConvNetConfig
 @dataclass
 class ESMDynamicConfig:
     dynamic_module: T.Any = DynamicModuleConfig()
-    resnet_contacts: T.Any = ResNetConfig(num_classes=1)
-    # resnet_conditionals: T.Any = ResNetConfig(num_classes=50)
-    dilated_convnet: T.Any = DilatedConvNetConfig()
-    # structure_module: T.Any = StructureModuleConfig()
-    # trunk: T.Any = FoldingTrunkConfig()
-    # lddt_head_hid_dim: int = 128
 
 
 class ESMDynamic(nn.Module):
+    """Model for prediction of dynamic contact maps from protein sequences.
+
+    Typical usage:
+    >>> 
+    """
     def __init__(self, load_esmfold=True, esmdynamic_config=None, esmfold_config=None, **kwargs):
         super().__init__()
 
-        self.register_buffer('rmsd_vals', rmsd_vals.unsqueeze(1))
+        self.register_buffer('dummy_buffer', torch.zeros(1))
 
         esmdynamic_config = esmdynamic_config if esmdynamic_config else OmegaConf.structured(ESMDynamicConfig(**kwargs))
         self.cfg = esmdynamic_config
@@ -84,29 +76,13 @@ class ESMDynamic(nn.Module):
         # DynamicModule based on evoformer block (from FoldingTrunk)
         self.dynamic_module = DynamicModule(**self.cfg.dynamic_module)
 
-        # Change from B x L x L x C -> B x C x L x L
+        # Linear module for final prediction
+        self.prediction_layer = nn.Sequential(
+            nn.LayerNorm(self.esmfold_cfg_trunk_pairwise_state_dim),
+            nn.Linear(self.esmfold_cfg_trunk_pairwise_state_dim, 1)
+            )
+
         self.rearrange_pair = Rearrange('b l1 l2 c -> b c l1 l2')
-        self.rearrange_pair_reverse = Rearrange('b c l1 l2 -> b l1 l2 c')
-
-        # Change from B x L x C -> B x C x L
-        self.rearrange_seq = Rearrange('b l c -> b c l')
-        self.rearrange_seq_reverse = Rearrange('b c l -> b l c')
-
-        # ResNet for dynamic contact prediction
-        self.resnet_dynamic_contacts = SymmetricResNet(**self.cfg.resnet_contacts)
-
-        # Transition for dynamic contact probability to conditionals
-        # self.cond_prob_transition = nn.Sequential(  #
-        #     nn.LayerNorm(self.resnet_dynamic_contacts.cfg.num_classes),
-        #     nn.Linear(self.resnet_dynamic_contacts.cfg.num_classes, self.dynamic_module.cfg.pairwise_state_dim),
-        #     nn.Linear(self.dynamic_module.cfg.pairwise_state_dim, self.dynamic_module.cfg.pairwise_state_dim),
-        # )  # Output dimensions must match c_z
-
-        # ResNet for conditional probability prediction
-        # self.resnet_conditional_prob = ResNet(**self.cfg.resnet_conditionals)
-
-        # Dilated convolutional network for RMSD prediction
-        self.rmsd_dilated_convnet = DilatedConvNet(**self.cfg.dilated_convnet)
 
     def set_chunk_size(self, chunk_size: T.Optional[int]):
         if self.load_esmfold is True:
@@ -149,14 +125,13 @@ class ESMDynamic(nn.Module):
         lm_logits = structure['lm_logits']  # Shape (B, L, self.n_tokens_embed)
         seq_transition_input = torch.cat((lddt_logits, lm_logits), dim=2)  # Concatenate along dim dimension
         s_s_0 = structure['s_s'] + self.seq_transition(seq_transition_input)
-        # print(s_s_0)
 
         # Combine ptm_logits and distogram_logits to bias s_z
         ptm_logits = structure['ptm_logits']
         distogram_logits = structure['distogram_logits']
         pair_transition_input = torch.cat((ptm_logits, distogram_logits), dim=3)  # Concatenate along dim dimension
         s_z_0 = structure['s_z'] + self.pair_transition(pair_transition_input)
-        # print(s_z_0)
+        
         # Run through dynamic contact module
         dynamic_module_output = self.dynamic_module(s_s_0,
                                                     s_z_0,
@@ -165,30 +140,18 @@ class ESMDynamic(nn.Module):
                                                     no_recycles=num_recycles
                                                     )
 
-        # dynamic_module_output += dynamic_module_output.T  # Symmetrize the output
         structure['dynamic_module_output'] = dynamic_module_output
 
         # Predict dynamic contact probability from pair features
-        dynamic_contact_logits = self.resnet_dynamic_contacts(self.rearrange_pair(dynamic_module_output['s_z']))
-
-        # dynamic_contact_logits = self.rearrange_pair_reverse(dynamic_contact_logits)
+        dynamic_contact_logits = self.rearrange_pair(self.prediction_layer(dynamic_module_output['s_z']))
         structure['dynamic_contact_logits'] = dynamic_contact_logits
         dynamic_contact_prob = torch.sigmoid(dynamic_contact_logits)
-        structure['dynamic_contact_prob'] = dynamic_contact_prob
-        structure['dynamic_contact_pred'] = torch.where(structure['dynamic_contact_prob'] > 0.5, 1, 0).long()  # 0.5
-        # threshold
-
-        # Predict RMSD
-        structure['rmsd_logits'] = self.rmsd_dilated_convnet(self.rearrange_seq(dynamic_module_output['s_s']))
-        structure['rmsd_prob'] = nn.functional.softmax(structure['rmsd_logits'], dim=1)
-        # Bins will be used in a cross entropy loss function --> Use logits
-        # structure['rmsd_bins'] = torch.unsqueeze(torch.argmax(structure['rmsd_prob'], dim=2), dim=2)
-        # Approximate RMSD ("categorical mixture")
-        structure['rmsd_pred'] = (self.rearrange_seq_reverse(structure['rmsd_prob']) @ self.rmsd_vals).squeeze(-1)
+        structure['dynamic_contact_prob'] = (dynamic_contact_prob + torch.transpose(dynamic_contact_prob, 2, 3)) / 2 # Symmetrize output
+        structure['dynamic_contact_pred'] = torch.where(structure['dynamic_contact_prob'] > 0.5, 1, 0).long()  # 0.5 threshold
 
         return structure
 
-    def predict_from_seqs(
+    def forward_from_seq(
             self, 
             sequences: T.Union[str, T.List[str]],
             residx: T.Optional[torch.Tensor] = None,
@@ -197,7 +160,7 @@ class ESMDynamic(nn.Module):
             residue_index_offset: T.Optional[int] = 512,
             chain_linker: T.Optional[str] = "G" * 25
     ):
-        """Predict from sequences directly.
+        """Feed example from sequence directly. Gradients are computed! Use self.predict_from_seqs() during inference.
 
         Args:
             sequences (Union[str, List[str]]): amino acid sequences.
@@ -232,6 +195,45 @@ class ESMDynamic(nn.Module):
         )
 
         return self.forward(aa=aatype, mask=mask, residx=residx, masking_pattern=masking_pattern, num_recycles=num_recycles)
+
+    @torch.no_grad()
+    def predict_from_seqs(
+            self, 
+            sequences: T.Union[str, T.List[str]],
+            residx: T.Optional[torch.Tensor] = None,
+            masking_pattern: T.Optional[torch.Tensor] = None,
+            num_recycles: T.Optional[int] = None,
+            residue_index_offset: T.Optional[int] = 512,
+            chain_linker: T.Optional[str] = "G" * 25
+    ):
+        """Predict from sequences directly. Gradient is not computed. Use for inference.
+
+        Args:
+            sequences (Union[str, List[str]]): amino acid sequences.
+            residx (torch.Tensor): Residue indices of amino acids. Will assume contiguous if not provided.
+            masking_pattern (torch.Tensor): Optional masking to pass to the input. Binary tensor of the
+                same size as `aa`.
+            num_recycles (int): How many recycle iterations to perform. If None, defaults to training max
+                recycles, which is 3.
+            residue_index_offset (int): Residue index separation between chains if predicting a multimer. Has no effect on
+                single chain predictions. Default: 512.
+            chain_linker (str): Linker to use between chains if predicting a multimer. Has no effect on single chain
+                predictions. Default: length-25 poly-G ("G" * 25).
+
+        Returns:
+            structure (dict): dictionary containing all predictions.
+        """
+
+        return self.forward_from_seq(
+            sequences,
+            residx,
+            masking_pattern,
+            num_recycles,
+            residue_index_offset,
+            chain_linker
+        )
+        
+        
 
     @torch.no_grad()
     def _trunk_input_from_seqs(self, sequences: T.Union[str, T.List[str]],
@@ -452,4 +454,4 @@ class ESMDynamic(nn.Module):
 
     @property
     def device(self):
-        return self.rmsd_vals.device
+        return self.dummy_buffer.device

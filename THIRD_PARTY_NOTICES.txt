@@ -1,3 +1,6 @@
+Project: Evolutionary Scale Modeling (ESM)
+Source: https://github.com/facebookresearch/esm
+
 MIT License
 
 Copyright (c) Facebook, Inc. and its affiliates.

@@ -1,5 +1,5 @@
 """
-DynamicModule based on ESMFold's FoldingTrunk.
+DynamicModule based on Evoformer.
 """
 
 import typing as T
@@ -9,8 +9,6 @@ from contextlib import ExitStack
 import torch
 import torch.nn as nn
 from esm.esmfold.v1.trunk import RelativePosition
-
-# from openfold.model.structure_module import StructureModule
 
 from esm.esmfold.v1.tri_self_attn_block import TriangularSelfAttentionBlock
 
@@ -65,7 +63,6 @@ class DynamicModule(nn.Module):
             ]
         )
 
-        # Is recycling necessary for DynamicModule?
         self.recycle_bins = 15
         self.recycle_s_norm = nn.LayerNorm(c_s)
         self.recycle_z_norm = nn.LayerNorm(c_z)
