@@ -1,10 +1,10 @@
 # ESMDynamic
 
-This is the code repository for publication (ref)[DOI] TODO: ADD PUBLICATION REF.
+This is the code repository for publication [ref](DOI) TODO: ADD PUBLICATION REF.
 
-This repository is based on (Evolutionary Scale Modeling)[https://github.com/facebookresearch/esm], which has been archived.
+This repository is based on [Evolutionary Scale Modeling](https://github.com/facebookresearch/esm), which has been archived.
 
-<details open><summary><b>Table of contents</b></summary>
+<details close><summary><b>Table of contents</b></summary>
 
 - [Usage](#usage)
     - [Quick Start](#quickstart)
@@ -26,7 +26,7 @@ This repository is based on (Evolutionary Scale Modeling)[https://github.com/fac
 
 ### Quick Start <a name="quickstart"></a>
 
-If you wish to use the model to predict a low number (one to a few hundred) sequences, we recommend you simply use our (Google Colab Notebook)[TODO: ADD URL TO GOOGLE COLAB] with manual sequence entry or FASTA file upload.
+If you wish to use the model to predict a low number (one to a few hundred) sequences, we recommend you simply use our [Google Colab Notebook](TODO: ADD URL TO GOOGLE COLAB) with manual sequence entry or FASTA file upload.
 
 ### Installation <a name="install"></a>
 
@@ -34,7 +34,7 @@ We recommend using the Dockerfile method to create a container with all required
 
 #### Docker
 
-First, make sure you have installed (Docker)[https://docs.docker.com/engine/install/] in your system. 
+First, make sure you have installed [Docker](https://docs.docker.com/engine/install/) in your system. 
 
-Since a GPU is recommended to run the model, you should have installed the (NVIDIA Container Toolkit)[https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html] as well.
+Since a GPU is recommended to run the model, you should have installed the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) as well.
 
