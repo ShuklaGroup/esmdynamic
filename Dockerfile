@@ -32,6 +32,13 @@ RUN conda create -n esmdynamic python=3.7 -y && conda clean --all
 # Activate environment and install packages inside it
 SHELL ["conda", "run", "-n", "esmdynamic", "/bin/bash", "-c"]
 
+# Ensure the torch cache directory exists
+RUN mkdir -p /root/.cache/torch/hub/checkpoints/
+
+# Download required pretrained models into the torch cache
+RUN wget -q -O /root/.cache/torch/hub/checkpoints/esmdynamic \
+   https://databank.illinois.edu/datafiles/4a57m/download
+
 RUN pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
 RUN pip install "fair-esm[esmfold]"
 RUN pip install 'dllogger @ git+https://github.com/NVIDIA/dllogger.git'
@@ -41,13 +48,6 @@ RUN pip install pandas
 RUN pip install biopython
 RUN pip install matplotlib
 RUN pip install plotly[express]
-
-# Ensure the torch cache directory exists
-RUN mkdir -p /root/.cache/torch/hub/checkpoints/
-
-# Download required pretrained models into the torch cache
-RUN wget -q -O /root/.cache/torch/hub/checkpoints/esmdynamic \
-   https://databank.illinois.edu/datafiles/4a57m/download
 
 # Download stereo_chemical_props.txt
 RUN mkdir -p /opt/openfold/resources && \
