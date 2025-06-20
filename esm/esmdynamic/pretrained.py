@@ -10,8 +10,8 @@ def _load_model(model_name, model_object=ESMDynamic):
         model_path = Path(model_name)
         model_data = torch.load(str(model_path), map_location="cpu")
     else:  # load from data repository, if file exists it won't redownload
-        url = "https://databank.illinois.edu/datafiles/4a57m/download"
-        model_data = torch.hub.load_state_dict_from_url(url, progress=True, file_name=model_name, map_location="cpu")
+        url = "https://databank.illinois.edu/datafiles/jx4ui/download"
+        model_data = torch.hub.load_state_dict_from_url(url, progress=True, file_name=f"{model_name}.pt", map_location="cpu")
 
     model = model_object()
 
@@ -20,7 +20,7 @@ def _load_model(model_name, model_object=ESMDynamic):
 
     missing_essential_keys = []
     for missing_key in expected_keys - found_keys:
-        if not missing_key.startswith("esm."):
+        if not missing_key.startswith("esmfold."):
             missing_essential_keys.append(missing_key)
 
     if missing_essential_keys:

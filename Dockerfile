@@ -36,8 +36,16 @@ SHELL ["conda", "run", "-n", "esmdynamic", "/bin/bash", "-c"]
 RUN mkdir -p /root/.cache/torch/hub/checkpoints/
 
 # Download required pretrained models into the torch cache
-RUN wget -q -O /root/.cache/torch/hub/checkpoints/esmdynamic \
-   https://databank.illinois.edu/datafiles/4a57m/download
+RUN wget -q -O /root/.cache/torch/hub/checkpoints/esmfold_3B_v1.pt \
+    https://dl.fbaipublicfiles.com/fair-esm/models/esmfold_3B_v1.pt && \
+    wget -q -O /root/.cache/torch/hub/checkpoints/esm2_t36_3B_UR50D.pt \
+    https://dl.fbaipublicfiles.com/fair-esm/models/esm2_t36_3B_UR50D.pt && \
+    wget -q -O /root/.cache/torch/hub/checkpoints/esm2_t36_3B_UR50D-contact-regression.pt \
+    https://dl.fbaipublicfiles.com/fair-esm/regression/esm2_t36_3B_UR50D-contact-regression.pt
+
+# Download esmdynamic weights
+RUN wget -q -O /root/.cache/torch/hub/checkpoints/esmdynamic.pt \
+   https://databank.illinois.edu/datafiles/jx4ui/download
 
 RUN pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
 RUN pip install "fair-esm[esmfold]"
