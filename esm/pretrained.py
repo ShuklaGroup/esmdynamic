@@ -420,9 +420,9 @@ def esmfold_v1():
     return esm.esmfold.v1.pretrained.esmfold_v1()
 
 
-def esmdyamic():
+def esmdynamic():
     """
     Fine-tuned model for dynamic contact prediction based on esmfold_v1.
     """
     import esm.esmdynamic.pretrained
-    return esm.esmdynamic.pretrained.esmdyamic()
+    return esm.esmdynamic.pretrained.esmdynamic()
