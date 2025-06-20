@@ -33,8 +33,10 @@ class ESMDynamicConfig:
 class ESMDynamic(nn.Module):
     """Model for prediction of dynamic contact maps from protein sequences.
 
-    Typical usage:
-    >>> 
+    Minimal usage:
+    >>> from esm.pretrained import esmdynamic
+    >>> model = esmdynamic()
+    >>> prediction = model.predict_from_seqs(["SEQVENCE"]) # "dynamic_contact_prob" key contains dynamic contact maps
     """
     def __init__(self, load_esmfold=True, esmdynamic_config=None, esmfold_config=None, **kwargs):
         super().__init__()

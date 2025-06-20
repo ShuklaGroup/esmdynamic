@@ -6,12 +6,12 @@ from esm.esmdynamic.esmdynamic import ESMDynamic
 
 
 def _load_model(model_name, model_object=ESMDynamic):
-    if model_name.endswith(".pt"):  # local, treat as filepath --> technically not used
+    if model_name.endswith(".pt"):  # local, treat as filepath --> not preferred usage
         model_path = Path(model_name)
         model_data = torch.load(str(model_path), map_location="cpu")
     else:  # load from data repository, if file exists it won't redownload
-        url = "{}" TODO: PUT URL HERE!!!!
-        model_data = torch.hub.load_state_dict_from_url(url, progress=False, map_location="cpu")
+        url = "https://databank.illinois.edu/datafiles/4a57m/download"
+        model_data = torch.hub.load_state_dict_from_url(url, progress=True, file_name=model_name, map_location="cpu")
 
     model = model_object()
 
@@ -31,8 +31,8 @@ def _load_model(model_name, model_object=ESMDynamic):
     return model
 
 
-def esmdynamic_v1():
+def esmdynamic():
     """
-    Load esmdynamic_v1 with pretrained weights.
+    Load esmdynamic with pretrained weights.
     """
-    return _load_model("esmdynamic_v1")
+    return _load_model("esmdynamic")

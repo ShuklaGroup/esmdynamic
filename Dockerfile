@@ -36,6 +36,8 @@ RUN pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1
 RUN pip install "fair-esm[esmfold]"
 RUN pip install 'dllogger @ git+https://github.com/NVIDIA/dllogger.git'
 RUN pip install 'openfold @ git+https://github.com/aqlaboratory/openfold.git@4b41059694619831a7db195b7e0988fc4ff3a307'
+RUN pip install 'fair-esm @ git+https://github.com/diegoeduardok/esmdynamic.git'
+RUN pip install biopython
 RUN pip install matplotlib
 RUN pip install plotly[express]
 
@@ -43,17 +45,17 @@ RUN pip install plotly[express]
 RUN mkdir -p /root/.cache/torch/hub/checkpoints/
 
 # Download required pretrained models into the torch cache
-#RUN wget -q -O /root/.cache/torch/hub/checkpoints/esmfold_3B_v1.pt \
-#    https://dl.fbaipublicfiles.com/fair-esm/models/esmfold_3B_v1.pt && \
-#    wget -q -O /root/.cache/torch/hub/checkpoints/esm2_t36_3B_UR50D.pt \
-#    https://dl.fbaipublicfiles.com/fair-esm/models/esm2_t36_3B_UR50D.pt && \
-#    wget -q -O /root/.cache/torch/hub/checkpoints/esm2_t36_3B_UR50D-contact-regression.pt \
-#    https://dl.fbaipublicfiles.com/fair-esm/regression/esm2_t36_3B_UR50D-contact-regression.pt
+RUN wget -q -O /root/.cache/torch/hub/checkpoints/esmdynamic \
+   https://databank.illinois.edu/datafiles/4a57m/download
 
 # Download stereo_chemical_props.txt
 RUN mkdir -p /opt/openfold/resources && \
     wget -q -P /opt/openfold/resources \
     https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
+
+# Make predict script globally executable
+RUN cp /opt/conda/envs/esmdynamic/lib/python3.7/site-packages/esm/esmdynamic/predict /usr/local/bin/predict && \
+    chmod +x /usr/local/bin/predict
 
 WORKDIR /workspace
 
