@@ -5,7 +5,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.express as px
-from esm.pretrained import esmdynamic
+import esm
 from Bio import SeqIO
 
 
@@ -109,7 +109,7 @@ def main():
     args = parse_args()
     device = torch.device(args.device if torch.cuda.is_available() or args.device == "cpu" else "cpu")
 
-    model = esmdynamic()
+    model = esm.pretrained.esmdynamic()
     model.set_chunk_size(args.chunk_size)
     model = model.to(device)
 
