@@ -1,7 +1,5 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-#
 # This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
+# LICENSE file and THIRD_PARTY_NOTICES in the root directory of this source tree.
 
 from setuptools import setup
 
@@ -28,14 +26,13 @@ extras = {
 setup(
     name="fair-esm",
     version=version,
-    description="Evolutionary Scale Modeling (esm): Pretrained language models for proteins. From Facebook AI Research.",
+    description="ESMDynamic repo based on Evolutionary Scale Modeling (esm) from Facebook AI Research.",
     long_description=readme,
     long_description_content_type="text/markdown",
-    author="Facebook AI Research",
-    # url="https://github.com/facebookresearch/esm",
+    author="Facebook AI Research/Shukla Group (UIUC)",
     license="MIT",
     packages=["esm", "esm/model", "esm/inverse_folding", "esm/esmfold/v1", "esm/esmdynamic", "esm/esmdynamic/training"],
     extras_require=extras,
-    data_files=[("source_docs/esm", ["LICENSE", "README.md", "CODE_OF_CONDUCT.rst"])],
+    data_files=[("source_docs/esm", ["LICENSE", "README.md", "THIRD_PARTY_NOTICES.txt"])],
     zip_safe=True,
 )

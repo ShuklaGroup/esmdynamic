@@ -26,7 +26,7 @@ This repository is based on [Evolutionary Scale Modeling](https://github.com/fac
 
 ### Quick Start <a name="quickstart"></a>
 
-If you wish to use the model to predict a low number (one to a few hundred) sequences, we recommend you simply use our [Google Colab Notebook](TODO: ADD URL TO GOOGLE COLAB) with manual sequence entry or FASTA file upload.
+If you wish to use the model to predict a small number sequences, we recommend you simply use our [Google Colab Notebook](TODO: ADD URL TO GOOGLE COLAB) with manual sequence entry or FASTA file upload.
 
 ### Installation <a name="install"></a>
 
