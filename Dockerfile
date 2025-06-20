@@ -54,10 +54,10 @@ RUN mkdir -p /opt/openfold/resources && \
     https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
 
 # Make predict script executable
-RUN echo '#!/bin/bash\n'\
-    'python /opt/conda/envs/esmdynamic/lib/python3.7/site-packages/esm/esmdynamic/predict.py "$@"' \
-    > /usr/local/bin/predict && \
+RUN echo '#!/bin/bash' > /usr/local/bin/predict && \
+    echo 'python /opt/conda/envs/esmdynamic/lib/python3.7/site-packages/esm/esmdynamic/predict.py "$@"' >> /usr/local/bin/predict && \
     chmod +x /usr/local/bin/predict
+
 
 WORKDIR /workspace
 
