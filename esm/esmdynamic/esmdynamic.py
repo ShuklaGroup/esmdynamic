@@ -19,10 +19,7 @@ from esm.esmfold.v1.misc import (
     collate_dense_tensors,
 )
 
-from .utils import rmsd_vals
 from .dynamic_module import DynamicModule, DynamicModuleConfig
-from .resnet import SymmetricResNet, ResNetConfig
-from .dilated_convnet import DilatedConvNet, DilatedConvNetConfig
 
 
 @dataclass
