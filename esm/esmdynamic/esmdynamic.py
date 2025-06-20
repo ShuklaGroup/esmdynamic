@@ -13,6 +13,7 @@ from openfold.utils.loss import compute_predicted_aligned_error, compute_tm
 from einops.layers.torch import Rearrange
 
 import esm
+from esm.esmfold.v1.esmfold import ESMFold
 from esm.esmfold.v1.categorical_mixture import categorical_lddt
 from esm.esmfold.v1.misc import (
     batch_encode_sequences,
@@ -46,7 +47,7 @@ class ESMDynamic(nn.Module):
         #  Load ESMFold
         self.load_esmfold = load_esmfold
         if self.load_esmfold is True:
-            self.esmfold = esm.pretrained.esmfold_v1()
+            self.esmfold = ESMFold()
             self.esmfold.requires_grad_(False)
 
         # Define some handy constants in case ESMFold model is not loaded
