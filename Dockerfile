@@ -57,7 +57,7 @@ RUN pip install biopython
 RUN pip install matplotlib
 RUN pip install plotly[express]
 
-# Download stereo_chemical_props.txt
+# Download stereo_chemical_props.txt (only needed by OpenFold)
 RUN mkdir -p /opt/openfold/resources && \
     wget -q -P /opt/openfold/resources \
     https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
@@ -66,7 +66,6 @@ RUN mkdir -p /opt/openfold/resources && \
 RUN echo '#!/bin/bash' > /usr/local/bin/predict && \
     echo 'python /opt/conda/envs/esmdynamic/lib/python3.7/site-packages/esm/esmdynamic/predict.py "$@"' >> /usr/local/bin/predict && \
     chmod +x /usr/local/bin/predict
-
 
 WORKDIR /workspace
 

@@ -16,7 +16,7 @@ def _load_model(model_name, model_object=ESMDynamic):
     model = model_object()
 
     expected_keys = set(model.state_dict().keys())
-    found_keys = set(model_state.keys())
+    found_keys = set(model_data.keys())
 
     missing_essential_keys = []
     for missing_key in expected_keys - found_keys:
@@ -26,7 +26,7 @@ def _load_model(model_name, model_object=ESMDynamic):
     if missing_essential_keys:
         raise RuntimeError(f"Keys '{', '.join(missing_essential_keys)}' are missing.")
 
-    model.load_state_dict(model_state, strict=False)
+    model.load_state_dict(model_data, strict=False)
 
     return model
 
