@@ -37,6 +37,7 @@ RUN pip install "fair-esm[esmfold]"
 RUN pip install 'dllogger @ git+https://github.com/NVIDIA/dllogger.git'
 RUN pip install 'openfold @ git+https://github.com/aqlaboratory/openfold.git@4b41059694619831a7db195b7e0988fc4ff3a307'
 RUN pip install 'fair-esm @ git+https://github.com/diegoeduardok/esmdynamic.git'
+RUN pip install pandas
 RUN pip install biopython
 RUN pip install matplotlib
 RUN pip install plotly[express]
