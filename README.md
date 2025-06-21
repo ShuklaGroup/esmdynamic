@@ -17,10 +17,9 @@ This repository is based on [Evolutionary Scale Modeling](https://github.com/fac
     	- [Conda](#install-conda)
   - [Bulk Prediction](#bulkprediction)
 - [Available Models and Datasets](#available)
-  - [Pre-trained Model](#available-model)
+  - [Pretrained Model](#available-model)
   - [Datasets](#available-datatsets)
-	  - [RCSB Clustering](#available-datatsets-rcsb)
-	  - [mdCATH](#available-datatsets-mdcath)
+- [Training](#training)
 - [Citations](#citations)
 - [License](#license)
 </details> 
@@ -35,7 +34,7 @@ Otherwise, building a Docker image with the `Dockerfile` is the simplest option 
 
 ### Installation <a name="install"></a>
 
-We recommend using the Dockerfile method to create an image with all required packages. Due to package deprecations, it may be difficult to install all requirements in a Python (e.g., Conda) environment. Additionally, the Docker setup process conviniently downloads the model weights. The only downside is that the Docker image takes relatively more space (~20 GB).
+We recommend using the Dockerfile method to create an image with all required packages. Due to package deprecations, it may be difficult to install all requirements in a Python (e.g., Conda) environment. Additionally, the Docker setup process conveniently downloads the model weights. The only downside is that the Docker image takes relatively more space (~20 GB).
 
 #### Docker <a name="install-docker"></a>
 
@@ -64,6 +63,7 @@ conda install -c conda-forge cudatoolkit=11.3
 pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
 pip install "fair-esm[esmfold]"
 pip install 'dllogger @ git+https://github.com/NVIDIA/dllogger.git'
+conda install nvidia/label/cuda-11.3.1::cuda-nvcc # Only if you need this version of nvcc
 pip install 'openfold @ git+https://github.com/aqlaboratory/openfold.git@4b41059694619831a7db195b7e0988fc4ff3a307'
 pip install 'fair-esm @ git+https://github.com/diegoeduardok/esmdynamic.git'
 pip install pandas
@@ -113,3 +113,70 @@ The output directory will contain the numerical output for each sequence in a pl
 Depending on your system's memory, you may change the default values for `batch_size` or `chunk_size` to tradeoff speed and VRAM.
 
 # Avilable Models and Datasets <a name="available"></a>
+
+## Pretrained Model <a name="available-model"></a>
+
+The ESMDynamic model weights are available at the Illinois Data Bank under [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Note you must still obtain the ESMFold weights for the model to run. A simple way to download the weights is by running:
+
+```python
+import esm
+model = esm.pretrained.esmdynamic()
+```
+
+Weights will be downloaded to the path given by `torch.hub.get_dir()`.
+
+## Datasets <a name="available-datatsets"></a>
+
+Three datasets are available at [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Follow the instructions in the README at the Data Bank to convert the files to the format needed for training. Each directory contains information about the data splits (list of identifiers in CSV format) and the weigths used for sampling during training (.pt format).
+
+| Dataset Name      | Original Data Source                                                           | Related Publication |
+|-------------------|--------------------------------------------------------------------------------|---------------------|
+| [ATLAS (Test Set)](https://databank.illinois.edu/datafiles/kennn/download)  | [ATLAS Database](https://www.dsimb.inserm.fr/ATLAS)                            | [ATLAS](https://doi.org/10.1093/nar/gkad1084) |
+| [mdCATH](https://databank.illinois.edu/datafiles/qacyy/download)            | [mdCATH Dataset](https://huggingface.co/datasets/compsciencelab/mdCATH)        | [mdCATH](https://www.nature.com/articles/s41597-024-04140-z) |
+| [RCSB Clusters](https://databank.illinois.edu/datafiles/485qm/download)     | [RCSB](https://www.rcsb.org/)                                                   | [RCSB](https://www.frontiersin.org/journals/bioinformatics/articles/10.3389/fbinf.2023.1311287/full)                 |
+
+# Training <a name="training"></a>
+
+First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1) following the README from the Data Bank. Then, you can use the [`train.py`](https://github.com/diegoeduardok/esmdynamic/blob/main/esm/esmdynamic/training/train.py) script from this repository. You will need to write a file with training parameters, named something like `train_params.txt`, for example:
+
+```
+--train_identifiers_file=./mdcath/train.csv
+--val_identifiers_file=./mdcath/val.csv
+--train_weights_file=./mdcath/train_weights.pt
+--val_weights_file=./mdcath/val_weights.pt
+--data_dir=./mdcath/
+--outpath=./train_output/
+--batch_size=4
+--batch_accum=16 # 4*16 = 64 effective batch size
+--epochs=1000
+--train_samples_per_epoch=1000
+--val_samples_per_epoch=100
+--weight_positive=0.85
+--decay_rate=2
+```
+
+Then, training can be run with:
+
+```bash
+python train.py @train_params.txt
+```
+
+# Citations <a name="citations"></a>
+
+If you use this code or its related datasets, please cite:
+
+```bibtex
+Add citation here.
+```
+
+You should also include citations to the related publications if appropriate:
+- [ESMFold](https://www.science.org/doi/10.1126/science.ade2574)
+- [RCSB](https://www.frontiersin.org/journals/bioinformatics/articles/10.3389/fbinf.2023.1311287/full)
+- [mdCATH](https://www.nature.com/articles/s41597-024-04140-z)
+- [ATLAS](https://doi.org/10.1093/nar/gkad1084)
+
+# License <a name="license"></a>
+
+Code is shared under the MIT [License](LICENSE).
+
+Code from ESM is also under the MIT License (see [`THIRD_PARTY_NOTICES.txt`](THIRD_PARTY_NOTICES.txt)).
