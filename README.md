@@ -1,6 +1,8 @@
 # ESMDynamic
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/diegoeduardok/esmdynamic/blob/main/examples/esmdynamic/esmdynamic.ipynb)
+[![Download Data](https://img.shields.io/badge/IL-Data_Bank-orange)](https://doi.org/10.13012/B2IDB-3773897_V1)
+
 
 This is the code repository for publication [ref](DOI) TODO: ADD PUBLICATION REF.
 
