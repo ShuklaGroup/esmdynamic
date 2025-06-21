@@ -4,7 +4,7 @@
 # LICENSE file in the root directory of this source tree.
 import typing as T
 from contextlib import ExitStack
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import torch
 import torch.nn as nn
@@ -48,7 +48,7 @@ class FoldingTrunkConfig:
     max_recycles: int = 4
     chunk_size: T.Optional[int] = None
 
-    structure_module: StructureModuleConfig = StructureModuleConfig()
+    structure_module: StructureModuleConfig = field(default_factory=StructureModuleConfig)
 
 
 def get_axial_mask(mask):

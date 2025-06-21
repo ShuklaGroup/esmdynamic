@@ -3,7 +3,7 @@ ESMFold fine-tuning for dynamic contact prediction - Diego E. Kleiman (Shukla Gr
 """
 import dataclasses
 import typing as T
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import torch
 import torch.nn as nn
@@ -24,7 +24,7 @@ from .dynamic_module import DynamicModule, DynamicModuleConfig
 
 @dataclass
 class ESMDynamicConfig:
-    dynamic_module: T.Any = DynamicModuleConfig()
+    dynamic_module: T.Any = field(default_factory=DynamicModuleConfig)
 
 
 class ESMDynamic(nn.Module):
