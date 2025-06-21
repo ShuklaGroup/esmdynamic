@@ -1,5 +1,7 @@
 # ESMDynamic
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/diegoeduardok/esmdynamic/blob/main/examples/esmdynamic/esmdynamic.ipynb)
+
 This is the code repository for publication [ref](DOI) TODO: ADD PUBLICATION REF.
 
 This repository is based on [Evolutionary Scale Modeling](https://github.com/facebookresearch/esm), which has been archived.
@@ -26,7 +28,7 @@ This repository is based on [Evolutionary Scale Modeling](https://github.com/fac
 
 ### Quick Start <a name="quickstart"></a>
 
-If you wish to use the model to predict a small number sequences, we recommend you simply use our [Google Colab Notebook](TODO: ADD URL TO GOOGLE COLAB) with manual sequence entry or FASTA file upload.
+If you wish to use the model to predict a small number sequences, we recommend you simply use our [Google Colab Notebook](https://colab.research.google.com/drive/11lQVOKTRZTj2nIaKUUvWBHmCLs-cugYD?usp=sharing) with manual sequence entry or FASTA file upload.
 
 ### Installation <a name="install"></a>
 
