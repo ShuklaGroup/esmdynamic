@@ -76,7 +76,7 @@ def save_outputs(output_dir, id, contact_map, mask, labels, boundaries):
     contact_map = contact_map[np.ix_(idx, idx)]
 
     # Save .npy
-    np.save(os.path.join(output_dir, f"{id}.npy"), contact_map)
+    np.savetxt(os.path.join(output_dir, f"{id}.txt"), contact_map, "%.3f")
 
     # Save .png with chain lines
     plt.figure(figsize=(6, 6))
