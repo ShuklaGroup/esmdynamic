@@ -84,14 +84,14 @@ def save_outputs(output_dir, id, contact_map, mask, labels, boundaries):
     for pos in boundaries:
         plt.axhline(pos - 0.5, color='white', linewidth=1)
         plt.axvline(pos - 0.5, color='white', linewidth=1)
-    plt.title(f"{id} Contact Map with Chain Boundaries", y=1.1)
+    plt.title(f"{id} Dynamic Contact Map", y=1.1)
     plt.savefig(os.path.join(output_dir, f"{id}.png"))
     plt.close()
 
     # Save .html with Plotly
     fig = px.imshow(
         contact_map,
-        labels=dict(x="Residue", y="Residue", color="Contact Prob."),
+        labels=dict(x="Residue", y="Residue", color="Dynamic Contact Prob."),
         x=labels,
         y=labels,
         color_continuous_scale="Viridis"
