@@ -45,7 +45,7 @@ Since a GPU is recommended to run the model, you should have installed the [NVID
 Next, follow the commands:
 
 ```bash
-git clone https://github.com/diegoeduardok/esmdynamic.git # Clone repo
+git clone https://github.com/ShuklaGroup/esmdynamic.git # Clone repo
 cd esmdynamic
 docker build -t esmdynamic .
 docker run --rm -it --gpus all -v "$PWD":/workspace esmdynamic # Run container in current dir w/GPU access
@@ -65,7 +65,7 @@ pip install "fair-esm[esmfold]"
 pip install 'dllogger @ git+https://github.com/NVIDIA/dllogger.git'
 conda install nvidia/label/cuda-11.3.1::cuda-nvcc # Only if you need this version of nvcc
 pip install 'openfold @ git+https://github.com/aqlaboratory/openfold.git@4b41059694619831a7db195b7e0988fc4ff3a307'
-pip install 'fair-esm @ git+https://github.com/diegoeduardok/esmdynamic.git'
+pip install 'fair-esm @ git+https://github.com/ShuklaGroup/esmdynamic.git'
 pip install pandas
 pip install biopython # Handle FASTA input
 pip install matplotlib # Visualization
