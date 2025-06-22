@@ -70,6 +70,7 @@ pip install pandas
 pip install biopython # Handle FASTA input
 pip install matplotlib # Visualization
 pip install plotly[express] # Visualization
+pip install tensorboard # Only needed if training
 ```
 
 You can run the [`predict.py`](esm/esmdynamic/predict.py) script in this repo for inference (more instructions below).
