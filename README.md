@@ -16,6 +16,7 @@ This repository is based on [Evolutionary Scale Modeling](https://github.com/fac
     	- [Docker](#install-docker)
     	- [Conda](#install-conda)
   - [Bulk Prediction](#bulkprediction)
+  - [Visualization](#visualization)
 - [Available Models and Datasets](#available)
   - [Pretrained Model](#available-model)
   - [Datasets](#available-datatsets)
@@ -112,6 +113,13 @@ If you installed the Docker image, the inference script is exposed via the execu
 The output directory will contain the numerical output for each sequence in a plain text file that can be easily read by `numpy.loadtxt`. A PNG image and a HTML-based visualization file are also provided.
 
 Depending on your system's memory, you may change the default values for `batch_size` or `chunk_size` to tradeoff speed and VRAM.
+
+### Visualization <a name="visualization"></a>
+
+If you use the [`predict.py`](esm/esmdynamic/predict.py) script or the [Colab Notebook](https://colab.research.google.com/github/ShuklaGroup/esmdynamic/blob/main/examples/esmdynamic/esmdynamic.ipynb), you will obtain an interactive HTML file that makes visualization easier. Open the file with a browser. Functionality includes zooming in and creating screen captures.
+
+![viz](viz_plotly.gif)
+
 
 # Avilable Models and Datasets <a name="available"></a>
 
