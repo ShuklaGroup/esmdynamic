@@ -144,7 +144,7 @@ First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897
 --val_identifiers_file=./mdcath/val.csv
 --train_weights_file=./mdcath/train_weights.pt
 --val_weights_file=./mdcath/val_weights.pt
---data_dir=./mdcath/
+--data_dir=./mdcath/mdcath/
 --outpath=./train_output/
 --batch_size=4
 --batch_accum=16 # 4*16 = 64 effective batch size
@@ -159,7 +159,7 @@ First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897
 Then, training can be run with:
 
 ```bash
-python train.py @train_params.txt
+python esm/esmdynamic/training/train.py @train_params.txt
 ```
 
 # Citations <a name="citations"></a>
