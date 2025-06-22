@@ -8,6 +8,8 @@ This is the code repository for publication [ref](DOI) TODO: ADD PUBLICATION REF
 
 This repository is based on [Evolutionary Scale Modeling](https://github.com/facebookresearch/esm), which has been archived.
 
+![model](model_scheme.png)
+
 <details close><summary><b>Table of contents</b></summary>
 
 - [Usage](#usage)
