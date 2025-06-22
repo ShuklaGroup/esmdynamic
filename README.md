@@ -127,7 +127,7 @@ Weights will be downloaded to the path given by `torch.hub.get_dir()`.
 
 ## Datasets <a name="available-datatsets"></a>
 
-Three datasets are available at [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Follow the instructions in the README at the Data Bank to convert the files to the format needed for training. Each directory contains information about the data splits (list of identifiers in CSV format) and the weigths used for sampling during training (.pt format).
+Three datasets are available at [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Follow the instructions in the README at the Data Bank (reproduced below) to convert the files to the format needed for training. Each directory contains information about the data splits (list of identifiers in CSV format) and the weigths used for sampling during training (`.pt` format).
 
 | Dataset Name      | Original Data Source                                                           | Related Publication |
 |-------------------|--------------------------------------------------------------------------------|---------------------|
@@ -135,9 +135,18 @@ Three datasets are available at [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/
 | [mdCATH](https://databank.illinois.edu/datafiles/qacyy/download)            | [mdCATH Dataset](https://huggingface.co/datasets/compsciencelab/mdCATH)        | [mdCATH](https://www.nature.com/articles/s41597-024-04140-z) |
 | [RCSB Clusters](https://databank.illinois.edu/datafiles/485qm/download)     | [RCSB](https://www.rcsb.org/)                                                   | [RCSB](https://www.frontiersin.org/journals/bioinformatics/articles/10.3389/fbinf.2023.1311287/full)                 |
 
+After downloading a `.zip` file, prepare the data:
+
+```bash
+unzip mdcath.zip # Change name as needed
+cd mdcath
+tar -xvf mdcath.tar.gz
+python esm/esmdynamic/training/convert_csv_to_torch.py mdcath/
+```
+
 # Training <a name="training"></a>
 
-First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1) following the README from the Data Bank. Then, you can use the [`train.py`](esm/esmdynamic/training/train.py) script from this repository. You will need to write a file with training parameters, named something like `train_params.txt`, for example:
+First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1) following the README from the Data Bank (or see instructions above). Then, you can use the [`train.py`](esm/esmdynamic/training/train.py) script from this repository. You will need to write a file with training parameters, named something like `train_params.txt`, for example:
 
 ```
 --train_identifiers_file=./mdcath/train.csv
