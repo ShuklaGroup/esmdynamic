@@ -144,6 +144,9 @@ tar -xvf mdcath.tar.gz
 python esm/esmdynamic/training/convert_csv_to_torch.py mdcath/
 ```
 
+> [!WARNING]  
+> RCSB dataset expands into a large directory (>20 GB).
+
 # Training <a name="training"></a>
 
 First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1) following the README from the Data Bank (or see instructions above). Then, you can use the [`train.py`](esm/esmdynamic/training/train.py) script from this repository. You will need to write a file with training parameters, named something like `train_params.txt`, for example:
