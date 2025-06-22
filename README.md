@@ -1,7 +1,7 @@
 # ESMDynamic
 
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/diegoeduardok/esmdynamic/blob/mainexamples/esmdynamic/esmdynamic.ipynb)
-[![Download Data](https://img.shields.io/badge/I-Data_Bank-black?labelColor=FF5F05)](https://doi.org/10.13012/B2IDB-3773897_V1)
+[![Download Data](https://img.shields.io/badge/ILLINOIS-Data_Bank-black?labelColor=FF5F05&color=13294B)](https://doi.org/10.13012/B2IDB-3773897_V1)
 
 
 This is the code repository for publication [ref](DOI) TODO: ADD PUBLICATION REF. It contains a model to predict dynamic contact maps from single protein sequences.
