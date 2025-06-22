@@ -1,7 +1,7 @@
 # ESMDynamic
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/diegoeduardok/esmdynamic/blob/main/examples/esmdynamic/esmdynamic.ipynb)
-[![Download Data](https://img.shields.io/badge/I-Data_Bank-black?labelColor=FF5F05)](https://doi.org/10.13012/B2IDB-3773897_V1)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/diegoeduardok/esmdynamic/blob/mainexamples/esmdynamic/esmdynamic.ipynb)
+[![Download Data](https://img.shields.io/badge/ILLINOIS-Data_Bank-black?labelColor=FF5F05&color=13294B)](https://doi.org/10.13012/B2IDB-3773897_V1)
 
 
 This is the code repository for publication [ref](DOI) TODO: ADD PUBLICATION REF. It contains a model to predict dynamic contact maps from single protein sequences.
@@ -30,7 +30,7 @@ This repository is based on [Evolutionary Scale Modeling](https://github.com/fac
 
 If you wish to use the model to predict a small number of sequences, we recommend you simply use our [Google Colab Notebook](https://colab.research.google.com/github/diegoeduardok/esmdynamic/blob/main/examples/esmdynamic/esmdynamic.ipynb) with manual sequence entry.
 
-Otherwise, building a Docker image with the `Dockerfile` is the simplest option to get started. Within the container, [`run_esmdynamic`](https://github.com/diegoeduardok/esmdynamic/blob/main/esm/esmdynamic/predict.py) can be used to predict sequences in batches from a [FASTA](https://github.com/diegoeduardok/esmdynamic/blob/main/examples/esmdynamic/example.fasta) or [CSV](https://github.com/diegoeduardok/esmdynamic/blob/main/examples/esmdynamic/example.csv) file using flags `--fasta` or `--csv`. 
+Otherwise, building a Docker image with the `Dockerfile` is the simplest option to get started. Within the container, [`run_esmdynamic`](esm/esmdynamic/predict.py) can be used to predict sequences in batches from a [FASTA](examples/esmdynamic/example.fasta) or [CSV](examples/esmdynamic/example.csv) file using flags `--fasta` or `--csv`. 
 
 ### Installation <a name="install"></a>
 
@@ -72,11 +72,11 @@ pip install matplotlib # Visualization
 pip install plotly[express] # Visualization
 ```
 
-You can run the [`predict.py`](https://github.com/diegoeduardok/esmdynamic/blob/main/esm/esmdynamic/predict.py) script in this repo for inference (more instructions below).
+You can run the [`predict.py`](esm/esmdynamic/predict.py) script in this repo for inference (more instructions below).
 
 ### Bulk Prediction <a name="bulkprediction"></a>
 
-Docs for the [`predict.py`](https://github.com/diegoeduardok/esmdynamic/blob/main/esm/esmdynamic/predict.py) script:
+Docs for the [`predict.py`](esm/esmdynamic/predict.py) script:
 
 ```
 usage: predict.py [-h] (--sequence SEQUENCE | --fasta FASTA | --csv CSV) [--batch_size BATCH_SIZE] [--chunk_size CHUNK_SIZE] [--device {cpu,cuda}] [--output_dir OUTPUT_DIR]
@@ -102,7 +102,7 @@ options:
 
 With FASTA file input, the headers will be used as IDs. With CSV input, the first row are headers, the first column contains IDs, and the second column contains the sequences.
 
-If you installed the Docker image, the inference script is exposed via the executable `run_esmdynamic`. For example, to recreate the dynamic contact maps in our publication, use either of the files in [examples](https://github.com/diegoeduardok/esmdynamic/tree/main/examples/esmdynamic):
+If you installed the Docker image, the inference script is exposed via the executable `run_esmdynamic`. For example, to recreate the dynamic contact maps in our publication, use either of the files in [examples](examples/esmdynamic):
 
 ```bash
 ./run_esmdynamic --csv example.csv --output_dir example
@@ -127,7 +127,7 @@ Weights will be downloaded to the path given by `torch.hub.get_dir()`.
 
 ## Datasets <a name="available-datatsets"></a>
 
-Three datasets are available at [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Follow the instructions in the README at the Data Bank to convert the files to the format needed for training. Each directory contains information about the data splits (list of identifiers in CSV format) and the weigths used for sampling during training (.pt format).
+Three datasets are available at [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Follow the instructions in the README at the Data Bank (reproduced below) to convert the files to the format needed for training. Each directory contains information about the data splits (list of identifiers in CSV format) and the weigths used for sampling during training (`.pt` format).
 
 | Dataset Name      | Original Data Source                                                           | Related Publication |
 |-------------------|--------------------------------------------------------------------------------|---------------------|
@@ -135,16 +135,28 @@ Three datasets are available at [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/
 | [mdCATH](https://databank.illinois.edu/datafiles/qacyy/download)            | [mdCATH Dataset](https://huggingface.co/datasets/compsciencelab/mdCATH)        | [mdCATH](https://www.nature.com/articles/s41597-024-04140-z) |
 | [RCSB Clusters](https://databank.illinois.edu/datafiles/485qm/download)     | [RCSB](https://www.rcsb.org/)                                                   | [RCSB](https://www.frontiersin.org/journals/bioinformatics/articles/10.3389/fbinf.2023.1311287/full)                 |
 
+After downloading a `.zip` file, prepare the data:
+
+```bash
+unzip mdcath.zip # Change name as needed
+cd mdcath
+tar -xvf mdcath.tar.gz
+python esm/esmdynamic/training/convert_csv_to_torch.py mdcath/
+```
+
+> [!WARNING]  
+> RCSB dataset expands into a large directory (>20 GB).
+
 # Training <a name="training"></a>
 
-First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1) following the README from the Data Bank. Then, you can use the [`train.py`](https://github.com/diegoeduardok/esmdynamic/blob/main/esm/esmdynamic/training/train.py) script from this repository. You will need to write a file with training parameters, named something like `train_params.txt`, for example:
+First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1) following the README from the Data Bank (or see instructions above). Then, you can use the [`train.py`](esm/esmdynamic/training/train.py) script from this repository. You will need to write a file with training parameters, named something like `train_params.txt`, for example:
 
 ```
 --train_identifiers_file=./mdcath/train.csv
 --val_identifiers_file=./mdcath/val.csv
 --train_weights_file=./mdcath/train_weights.pt
 --val_weights_file=./mdcath/val_weights.pt
---data_dir=./mdcath/
+--data_dir=./mdcath/mdcath/
 --outpath=./train_output/
 --batch_size=4
 --batch_accum=16 # 4*16 = 64 effective batch size
@@ -153,12 +165,13 @@ First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897
 --val_samples_per_epoch=100
 --weight_positive=0.85
 --decay_rate=2
+--pretrained=checkpoint.pt # Path to a full state dict
 ```
 
 Then, training can be run with:
 
 ```bash
-python train.py @train_params.txt
+python esm/esmdynamic/training/train.py @train_params.txt
 ```
 
 # Citations <a name="citations"></a>
@@ -179,4 +192,4 @@ You should also include citations to the related publications if appropriate:
 
 Code is shared under the MIT [License](LICENSE).
 
-Code from ESM is also under the MIT License (see [`THIRD_PARTY_NOTICES.txt`](THIRD_PARTY_NOTICES.txt)).
+Code from ESM is also shared under the MIT License (see [`THIRD_PARTY_NOTICES.txt`](THIRD_PARTY_NOTICES.txt)).

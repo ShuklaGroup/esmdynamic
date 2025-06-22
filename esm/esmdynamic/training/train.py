@@ -68,7 +68,7 @@ def init_data_loaders(training_set, validation_set, batch_size=4, train_samples_
 
 
 def init_model(chunk_size=256, device="cuda", pretrained=None):
-    model = ESMDynamicDirect(load_esmfold=True)
+    model = ESMDynamic(load_esmfold=True)
     if pretrained:
         model.load_state_dict(torch.load(pretrained), strict=False)
     if device == "cuda":

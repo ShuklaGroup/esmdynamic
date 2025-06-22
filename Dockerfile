@@ -56,6 +56,7 @@ RUN pip install pandas
 RUN pip install biopython
 RUN pip install matplotlib
 RUN pip install plotly[express]
+RUN pip install tensorboard
 
 # Download stereo_chemical_props.txt (only needed by OpenFold)
 RUN mkdir -p /opt/openfold/resources && \
