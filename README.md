@@ -105,7 +105,7 @@ options:
 
 With FASTA file input, the headers will be used as IDs. With CSV input, the first row are headers, the first column contains IDs, and the second column contains the sequences.
 
-If you installed the Docker image, the inference script is exposed via the executable `run_esmdynamic`. For example, to recreate the dynamic contact maps in our publication, use either of the files in [examples](examples/esmdynamic):
+To recreate the dynamic contact maps in our publication, use either of the files in [examples](examples/esmdynamic):
 
 ```bash
 run_esmdynamic --csv example.csv --output_dir example
@@ -113,11 +113,11 @@ run_esmdynamic --csv example.csv --output_dir example
 
 The output directory will contain the numerical output for each sequence in a plain text file that can be easily read by `numpy.loadtxt`. A PNG image and a HTML-based visualization file are also provided.
 
-Depending on your system's memory, you may change the default values for `batch_size` or `chunk_size` to tradeoff speed and VRAM.
+Depending on your system's memory, you may change the default values for `batch_size` or `chunk_size` to trade off between speed and VRAM.
 
 ### Visualization <a name="visualization"></a>
 
-If you use the [`predict.py`](esm/esmdynamic/predict.py) script or the [Colab Notebook](https://colab.research.google.com/github/ShuklaGroup/esmdynamic/blob/main/examples/esmdynamic/esmdynamic.ipynb), you will obtain an interactive HTML file that makes visualization easier. Open the file with a browser. Functionality includes zooming in and creating screen captures.
+If you use the [`run_esmdynamic`](esm/esmdynamic/predict.py) script or the [Colab Notebook](https://colab.research.google.com/github/ShuklaGroup/esmdynamic/blob/main/examples/esmdynamic/esmdynamic.ipynb), you will obtain an interactive HTML file that makes visualization easier. Open the file with a browser. Functionality includes zooming in and creating screen captures.
 
 ![viz](viz_plotly.gif)
 
@@ -126,18 +126,18 @@ If you use the [`predict.py`](esm/esmdynamic/predict.py) script or the [Colab No
 
 ## Pretrained Model <a name="available-model"></a>
 
-The ESMDynamic model weights are available at the Illinois Data Bank under [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Note you must still obtain the ESMFold weights for the model to run. A simple way to download the weights is by running:
+The ESMDynamic model weights are available at the Illinois Data Bank under [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Note you must still obtain the ESMFold weights to run the model. A simple way to download the weights is with:
 
 ```python
 import esm
 model = esm.pretrained.esmdynamic()
 ```
 
-Weights will be downloaded to the path given by `torch.hub.get_dir()`.
+Weights will be found in the path given by `torch.hub.get_dir()`.
 
 ## Datasets <a name="available-datatsets"></a>
 
-Three datasets are available at [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Follow the instructions in the README at the Data Bank (reproduced below) to convert the files to the format needed for training. Each directory contains information about the data splits (list of identifiers in CSV format) and the weigths used for sampling during training (`.pt` format).
+Three datasets are available at [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Follow the instructions in the README at the [Data Bank](https://doi.org/10.13012/B2IDB-3773897_V1) (reproduced below) to convert the files to the format needed for training. Each directory contains information about the data splits (list of identifiers in CSV format) and the weigths used for sampling during training (`.pt` format).
 
 | Dataset Name      | Original Data Source                                                           | Related Publication |
 |-------------------|--------------------------------------------------------------------------------|---------------------|
