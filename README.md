@@ -57,26 +57,25 @@ docker run --rm -it --gpus all -v "$PWD":/workspace esmdynamic # Run container i
 
 #### Conda <a name="install-conda"></a>
 
-Create a new environment with Python 3.7, cudatoolkit 11.3 (incompatible with NVIDIA Ada Lovelace `sm_89` or newer architectures), and the appropriate Pytorch version. Then, install required packages. Make sure `nvcc` is available (required by OpenFold).
+Create an environment and install packages (this is using Python 3.11, CUDA 12.6, torch 2.7.1).
 
 ```bash
-conda create -n esmdynamic python=3.7
+conda create -n esmdynamic python=3.11.13
 conda activate esmdynamic
-conda install -c conda-forge cudatoolkit=11.3
-pip install torch==1.12.1+cu113 torchvision==0.13.1+cu113 torchaudio==0.12.1 --extra-index-url https://download.pytorch.org/whl/cu113
-pip install "fair-esm[esmfold]"
-pip install 'dllogger @ git+https://github.com/NVIDIA/dllogger.git'
-conda install nvidia/label/cuda-11.3.1::cuda-nvcc # Only if you need this version of nvcc
-pip install 'openfold @ git+https://github.com/aqlaboratory/openfold.git@4b41059694619831a7db195b7e0988fc4ff3a307'
-pip install 'fair-esm @ git+https://github.com/ShuklaGroup/esmdynamic.git'
-pip install pandas
-pip install biopython # Handle FASTA input
-pip install matplotlib # Visualization
-pip install plotly[express] # Visualization
-pip install tensorboard # Only needed if training
+conda install nvidia/label/cuda-12.6.3::cuda-nvcc # If you don't have nvcc
+conda install -c nvidia cuda-toolkit 
+pip3 install torch torchvision torchaudio # Should give 2.7.1+cu126
+pip install scipy omegaconf pytorch_lightning biopython ml_collections einops py3Dmol modelcif matplotlib plotly[express] dm-tree
+pip install git+https://github.com/NVIDIA/dllogger.git
+pip install git+https://github.com/sokrypton/openfold.git # Use the ColabFold fork!
+pip install git+https://github.com/ShuklaGroup/esmdynamic.git
 ```
 
-You can run the [`predict.py`](esm/esmdynamic/predict.py) script in this repo for inference (more instructions below).
+You can then run the [`predict.py`](esm/esmdynamic/predict.py) script for inference:
+
+```bash
+python $CONDA_PREFIX/lib/python3.11/site-packages/esm/esmdynamic/predict.py -h # Print docs, will download weights when needed
+```
 
 ### Bulk Prediction <a name="bulkprediction"></a>
 
