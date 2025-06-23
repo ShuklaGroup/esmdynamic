@@ -105,6 +105,8 @@ options:
 
 With FASTA file input, the headers will be used as IDs. With CSV input, the first row are headers, the first column contains IDs, and the second column contains the sequences.
 
+Use `:` to separate chains (unless using the Colab Notebook, then use `/`).
+
 To recreate the dynamic contact maps in our publication, use either of the files in [examples](examples/esmdynamic):
 
 ```bash
