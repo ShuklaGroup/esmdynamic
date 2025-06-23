@@ -52,7 +52,7 @@ git clone https://github.com/ShuklaGroup/esmdynamic.git # Clone repo
 cd esmdynamic
 docker build -t esmdynamic .
 docker run --rm -it --gpus all -v "$PWD":/workspace esmdynamic # Run container in current dir w/GPU access
-./run_esmdynamic -h # Print help for prediction script 
+run_esmdynamic -h # Print help for prediction script 
 ```
 
 #### Conda <a name="install-conda"></a>
@@ -71,15 +71,15 @@ pip install git+https://github.com/sokrypton/openfold.git # Use the ColabFold fo
 pip install git+https://github.com/ShuklaGroup/esmdynamic.git
 ```
 
-You can then run the [`predict.py`](esm/esmdynamic/predict.py) script for inference:
+You can then run the [`run_esmdynamic`](esm/esmdynamic/predict.py) script for inference:
 
 ```bash
-python $CONDA_PREFIX/lib/python3.11/site-packages/esm/esmdynamic/predict.py -h # Print docs, will download weights when needed
+run_esmdynamic -h # Print docs, will download weights when needed
 ```
 
 ### Bulk Prediction <a name="bulkprediction"></a>
 
-Docs for the [`predict.py`](esm/esmdynamic/predict.py) script:
+The [`predict.py`](esm/esmdynamic/predict.py) script is the implementation for the executable `run_esmdynamic`. These are the docs:
 
 ```
 usage: predict.py [-h] (--sequence SEQUENCE | --fasta FASTA | --csv CSV) [--batch_size BATCH_SIZE] [--chunk_size CHUNK_SIZE] [--device {cpu,cuda}] [--output_dir OUTPUT_DIR]
@@ -108,7 +108,7 @@ With FASTA file input, the headers will be used as IDs. With CSV input, the firs
 If you installed the Docker image, the inference script is exposed via the executable `run_esmdynamic`. For example, to recreate the dynamic contact maps in our publication, use either of the files in [examples](examples/esmdynamic):
 
 ```bash
-./run_esmdynamic --csv example.csv --output_dir example
+run_esmdynamic --csv example.csv --output_dir example
 ```
 
 The output directory will contain the numerical output for each sequence in a plain text file that can be easily read by `numpy.loadtxt`. A PNG image and a HTML-based visualization file are also provided.

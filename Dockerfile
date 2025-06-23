@@ -1,10 +1,10 @@
 FROM nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu18.04
 
-# LABEL org.opencontainers.image.version="1.0.0"
-# LABEL org.opencontainers.image.authors="Shukla Group (UIUC)"
-# LABEL org.opencontainers.image.source=""
-# LABEL org.opencontainers.image.licenses=""
-# LABEL org.opencontainers.image.base.name="docker.io/nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu18.04"
+LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.authors="Diego Kleiman - Shukla Group (UIUC)"
+LABEL org.opencontainers.image.source="https://github.com/ShuklaGroup/esmdynamic"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.base.name="docker.io/nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu18.04"
 
 RUN apt-key del 7fa2af80 || true
 RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
@@ -62,11 +62,6 @@ RUN pip install tensorboard
 RUN mkdir -p /opt/openfold/resources && \
     wget -q -P /opt/openfold/resources \
     https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
-
-# Make predict script executable
-RUN echo '#!/bin/bash' > /usr/local/bin/run_esmdynamic && \
-    echo 'python /opt/conda/envs/esmdynamic/lib/python3.7/site-packages/esm/esmdynamic/predict.py "$@"' >> /usr/local/bin/run_esmdynamic && \
-    chmod +x /usr/local/bin/run_esmdynamic
 
 WORKDIR /workspace
 
