@@ -35,4 +35,9 @@ setup(
     extras_require=extras,
     data_files=[("source_docs/esm", ["LICENSE", "README.md", "THIRD_PARTY_NOTICES.txt"])],
     zip_safe=True,
+    entry_points={
+        "console_scripts": [
+            "run_esmdynamic=esm.esmdynamic.predict:main",
+        ],
+    },
 )
