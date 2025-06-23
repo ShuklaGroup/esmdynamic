@@ -9,3 +9,4 @@
   `data/hhblits_uniclust_2017_10_1a3a_1_A.a3m`, `data/hhblits_uniclust_2017_10_1xcr_1_A.a3m`, `data/hhblits_uniclust_2017_10_5ahw_1_A.a3m`.
   - Generated with: `hhblits -i UniRef50_$id.fas -oa3m UniRef50_$id.a3m -n 3 -d /uniclust30_2017_10/uniclust30_2017_10`.
 * `esm2_infer_fairscale_fsdp_cpu_offloading.py` shows how to load the ESM-2 15B model with Fairscale's FSDP's CPU offloading capability on a single GPU
+* `esmdynamic/` contains sample files to run with `run_esmdynamic --fasta example.fasta` (or `--csv example.csv`).
