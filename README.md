@@ -57,7 +57,7 @@ run_esmdynamic -h # Print help for prediction script
 
 #### Conda <a name="install-conda"></a>
 
-Create an environment and install packages (this is using Python 3.11, CUDA 12.6, torch 2.7.1).
+Install [Conda](https://www.anaconda.com/docs/getting-started/miniconda/install) if not available. Create an environment and install packages (this is using Python 3.11, CUDA 12.6, torch 2.7.1).
 
 ```bash
 conda create -n esmdynamic python=3.11.13
