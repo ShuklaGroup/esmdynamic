@@ -65,7 +65,7 @@ conda activate esmdynamic
 conda install nvidia/label/cuda-12.6.3::cuda-nvcc # If you don't have nvcc
 conda install -c nvidia cuda-toolkit 
 pip3 install torch torchvision torchaudio # Should give 2.7.1+cu126
-pip install scipy omegaconf pytorch_lightning biopython ml_collections einops py3Dmol modelcif matplotlib plotly[express] dm-tree
+pip install scipy omegaconf pytorch_lightning biopython ml_collections einops py3Dmol modelcif matplotlib plotly[express] dm-tree tensorboard
 pip install git+https://github.com/NVIDIA/dllogger.git
 pip install git+https://github.com/sokrypton/openfold.git # Use the ColabFold fork!
 pip install git+https://github.com/ShuklaGroup/esmdynamic.git
