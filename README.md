@@ -4,8 +4,7 @@
 [![Download Data](https://img.shields.io/badge/ILLINOIS-Data_Bank-black?labelColor=FF5F05&color=13294B)](https://doi.org/10.13012/B2IDB-3773897_V1)
 
 
-This is the code repository for publication [ref](DOI) TODO: ADD PUBLICATION REF. It contains a model to predict dynamic contact maps from single protein sequences.
-
+This is the code repository for [ESMDynamic: Fast and Accurate Prediction of Protein Dynamic Contact Maps from Single Sequences](https://www.biorxiv.org/content/10.1101/2025.08.20.671365v1).
 This repository is based on [Evolutionary Scale Modeling](https://github.com/facebookresearch/esm), which has been archived.
 
 ![model](model_scheme.png)
@@ -191,7 +190,17 @@ python esm/esmdynamic/training/train.py @train_params.txt
 If you use this code or its related datasets, please cite:
 
 ```bibtex
-Add citation here.
+@article {Kleiman2025.08.20.671365,
+	author = {Kleiman, Diego E and Feng, Jiangyan and Xue, Zhengyuan and Shukla, Diwakar},
+	title = {ESMDynamic: A Fast and Accurate Prediction of Protein Dynamic Contact Maps from Single Sequences},
+	elocation-id = {2025.08.20.671365},
+	year = {2025},
+	doi = {10.1101/2025.08.20.671365},
+	publisher = {Cold Spring Harbor Laboratory},
+	URL = {https://www.biorxiv.org/content/early/2025/08/24/2025.08.20.671365},
+	eprint = {https://www.biorxiv.org/content/early/2025/08/24/2025.08.20.671365.full.pdf},
+	journal = {bioRxiv}
+}
 ```
 
 You should also include citations to the related publications if appropriate:
