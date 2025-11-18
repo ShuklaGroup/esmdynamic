@@ -59,7 +59,7 @@ def loss_dynamic_conf(conf_pred, conf_target, lengths):
     """
     B, C, L = conf_pred.shape
     mask = length_mask_1d(B, L, lengths, conf_pred.device)
-    loss = (conf_pred - conf_target).abs()
+    loss = (conf_pred - conf_target).pow(2)
     loss = loss * mask[:, None]
     return loss.sum()
 
@@ -68,32 +68,33 @@ def loss_dynamic_conf(conf_pred, conf_target, lengths):
 # 2. Kinetics loss (multiclass)
 ############################################################
 
-def loss_kinetic_logits(logits, labels, lengths):
+def loss_kinetic_logits(logits, labels, lengths, class_weights):
     """
-    logits: [B, n_conditions, n_rates, L, L, n_classes]
-    labels: [B, n_conditions, n_rates, L, L]
+    logits: [B, C, 2, L, L, K]
+    labels: [B, C, 2, L, L]
+    class_weights: [2, K]  # weights for off-rate and on-rate
     """
-
     B, C, R, L, _, K = logits.shape
+    assert R == 2, "Expected n_rates = 2"
 
-    # Rearrange for CE: [B, K, C, R, L, L]
-    logits = logits.permute(0, 5, 1, 2, 3, 4)
-
-    labels = labels.long()
-
-    # Create mask: [B, L, L]
+    # Mask [B, L, L] → [B, 1, 1, L, L]
     mask = length_mask_2d(B, L, lengths, logits.device)
+    mask = mask[:, None, None, :, :].bool()   # now broadcastable over [C, R]
 
-    # Flatten everything except batch & class dims
-    logits = logits.reshape(B, K, -1)
-    labels = labels.reshape(B, -1)
-    mask = mask.reshape(B, -1)
+    # Apply mask separately to each rate
+    # OFF-TIME (rate 0)
+    logits_off  = logits[:, :, 0][mask]  # → [N_off, K]
+    labels_off  = labels[:, :, 0][mask]  # → [N_off]
 
-    # Filter to only valid positions
-    logits = logits[:, :, mask]
-    labels = labels[mask]
+    # ON-TIME (rate 1)
+    logits_on   = logits[:, :, 1][mask]  # → [N_on, K]
+    labels_on   = labels[:, :, 1][mask]  # → [N_on]
 
-    return F.cross_entropy(logits, labels)
+    # Compute CE for each
+    loss_off = F.cross_entropy(logits_off, labels_off.long(), weight=class_weights[0])
+    loss_on  = F.cross_entropy(logits_on,  labels_on.long(),  weight=class_weights[1])
+
+    return loss_off + loss_on
 
 
 def loss_kinetic_conf(conf_pred, conf_target, lengths):
@@ -104,7 +105,7 @@ def loss_kinetic_conf(conf_pred, conf_target, lengths):
     mask = length_mask_1d(B, L, lengths, conf_pred.device)
     mask = mask[:, None, None, :]  # [B,1,1,L]
 
-    loss = (conf_pred - conf_target).abs()
+    loss = (conf_pred - conf_target).pow(2)
     return (loss * mask).sum()
 
 
@@ -168,28 +169,3 @@ def esmdynamic_loss(outputs, targets, lengths, active_heads):
         raise RuntimeError("No valid heads found for loss computation.")
 
     return total / count
-
-
-def get_accuracy_metrics(pred, labels):
-    """Useful metrics to track model performance.
-    """
-    dynamic_contact_pred = pred["dynamic_contact_pred"]
-    dynamic_contact_label = labels["dynamic_contacts"]
-    prot_lengths = labels["protein_lengths"]
-
-    tp = 0
-    tn = 0
-    fp = 0
-    fn = 0
-    for p, l, length in zip(dynamic_contact_pred, dynamic_contact_label, prot_lengths):
-        tp += torch.sum(torch.logical_and((p[0, :length, :length] == 1), (l[0, :length, :length] == 1)))
-        tn += torch.sum(torch.logical_and((p[0, :length, :length] == 0), (l[0, :length, :length] == 0)))
-        fp += torch.sum(torch.logical_and((p[0, :length, :length] == 1), (l[0, :length, :length] == 0)))
-        fn += torch.sum(torch.logical_and((p[0, :length, :length] == 0), (l[0, :length, :length] == 1)))
-    dyn_cont_acc = (tp + tn) / (tp + tn + fp + fn)
-    dyn_cont_bal_acc = .5*(tp/(tp+fn) + tn/(tn+fp))
-    dyn_cont_tpr = (tp) / (tp + fn)
-    dyn_cont_prec = tp / (tp + fp)
-    dyn_cont_f1s = (2*tp) / (2*tp + fp + fn)
-
-    return torch.Tensor([dyn_cont_acc, dyn_cont_bal_acc, dyn_cont_tpr, dyn_cont_prec, dyn_cont_f1s])
