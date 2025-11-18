@@ -1,7 +1,5 @@
 from pathlib import Path
-
 import torch
-
 from esm.esmdynamic.esmdynamic import ESMDynamic
 
 
