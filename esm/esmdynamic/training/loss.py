@@ -72,29 +72,35 @@ def loss_kinetic_logits(logits, labels, lengths, class_weights):
     """
     logits: [B, C, 2, L, L, K]
     labels: [B, C, 2, L, L]
-    class_weights: [2, K]  # weights for off-rate and on-rate
+    class_weights: [2, K]
     """
     B, C, R, L, _, K = logits.shape
-    assert R == 2, "Expected n_rates = 2"
+    assert R == 2
 
-    # Mask [B, L, L] → [B, 1, 1, L, L]
-    mask = length_mask_2d(B, L, lengths, logits.device)
-    mask = mask[:, None, None, :, :].bool()   # now broadcastable over [C, R]
+    # Make 2D mask: [B, L, L]
+    mask = length_mask_2d(B, L, lengths, logits.device)  # [B, L, L]
 
-    # Apply mask separately to each rate
-    # OFF-TIME (rate 0)
-    logits_off  = logits[:, :, 0][mask]  # → [N_off, K]
-    labels_off  = labels[:, :, 0][mask]  # → [N_off]
+    # Expand to match [B, C, 2, L, L]
+    mask = mask[:, None, None, :, :]                     # [B, 1, 1, L, L]
+    mask = mask.expand(-1, C, R, -1, -1)                 # [B, C, 2, L, L]
+    mask = mask.bool()
 
-    # ON-TIME (rate 1)
-    logits_on   = logits[:, :, 1][mask]  # → [N_on, K]
-    labels_on   = labels[:, :, 1][mask]  # → [N_on]
+    # Extract masked logits/labels for each rate
+    logits_off = logits[:, :, 0][mask[:, :, 0]]   # → [N_off, K]
+    labels_off = labels[:, :, 0][mask[:, :, 0]]   # → [N_off]
 
-    # Compute CE for each
-    loss_off = F.cross_entropy(logits_off, labels_off.long(), weight=class_weights[0])
-    loss_on  = F.cross_entropy(logits_on,  labels_on.long(),  weight=class_weights[1])
+    logits_on = logits[:, :, 1][mask[:, :, 1]]    # → [N_on, K]
+    labels_on = labels[:, :, 1][mask[:, :, 1]]    # → [N_on]
 
-    return loss_off + loss_on
+    # Cross-entropy
+    loss_off = F.cross_entropy(logits_off, labels_off.long(),
+                               weight=class_weights[0],
+                               reduction="none")
+    loss_on  = F.cross_entropy(logits_on,  labels_on.long(),
+                               weight=class_weights[1],
+                               reduction="none")
+
+    return loss_off.sum() + loss_on.sum()
 
 
 def loss_kinetic_conf(conf_pred, conf_target, lengths):
@@ -146,7 +152,7 @@ LOSS_FUNCS = {
     "dynamic_confidence": loss_dynamic_conf,
 }
 
-def esmdynamic_loss(outputs, targets, lengths, active_heads):
+def esmdynamic_loss(outputs, targets, lengths, active_heads, kin_class_weights, alpha=0.25, gamma=2):
     """
     outputs: dict containing only heads that were loaded
     targets: dict containing ground truths for those heads
@@ -161,7 +167,14 @@ def esmdynamic_loss(outputs, targets, lengths, active_heads):
         if head not in LOSS_FUNCS:
             continue
         loss_fn = LOSS_FUNCS[head]
-        loss = loss_fn(outputs[head], targets[head], lengths)
+
+        if head == "kinetic_logits":
+            loss = loss_fn(outputs[head], targets[head], lengths, kin_class_weights)
+        elif head == "dynamic_logits":
+            loss = loss_fn(outputs[head], targets[head], lengths, alpha=alpha, gamma=gamma)
+        else:
+            loss = loss_fn(outputs[head], targets[head], lengths)
+            
         total += loss
         count += 1
 
