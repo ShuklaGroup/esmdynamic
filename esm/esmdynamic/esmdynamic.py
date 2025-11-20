@@ -268,7 +268,7 @@ class ESMDynamic(nn.Module):
                 name="kinetic",
                 task_type="kinetics",
                 n_conditions=5,
-                n_classes=6,               # {never observed, always observed, 1-10 ns, 10-100 ns, 100-300 ns, 300+ ns}
+                n_classes=6,               # {always observed, 1-10 ns, 10-100 ns, 100-300 ns, 300+ ns, never observed}
                 dynamic_cfg=self.cfg.kinetic_module,
                 use_confidence_head=True,  # per-residue per-temp accuracy averaged across on/off
                 use_residual_head=False
