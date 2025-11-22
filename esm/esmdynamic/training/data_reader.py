@@ -8,13 +8,11 @@ from torch.utils.data import Dataset, WeightedRandomSampler
 
 
 class DynContactDataset(Dataset):
-    def __init__(self, data_dir, identifiers, crop_length, weights=None, dyn_out_class_weights=None, kin_out_class_weights=None):
+    def __init__(self, data_dir, identifiers, crop_length, weights=None):
         self.data_dir = data_dir
         self.identifiers = identifiers
         self.crop_length = crop_length
         self.weights = weights
-        self.dyn_out_class_weights = dyn_out_class_weights
-        self.kin_out_class_weights = kin_out_class_weights
 
 
     def __len__(self):
