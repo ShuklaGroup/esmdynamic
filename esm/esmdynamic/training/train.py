@@ -106,7 +106,8 @@ def init_writer(outpath):
 def save_head_state_dicts(model, head_prefixes, outpath, prefix_label, timestamp):
     for h in sorted(head_prefixes):
         fname = os.path.join(outpath, f"{h}_head_{prefix_label}_{timestamp}.pt")
-        torch.save(model.heads[h].state_dict(), fname)
+        sd = model.heads[h].state_dict()
+        torch.save({f"heads.{h}.{k}": v for k, v in sd.items()}, fname)
         print(f"Saved head '{h}' -> {fname}")
 
 
@@ -501,7 +502,7 @@ def train_one_epoch(
                 epoch_metrics["dynamic_logits"].append(dyn_metrics)
                 # Log to tensorboard
                 step = epoch * len(training_loader) + i
-                writer.add_scalar("Loss/train_batch", loss.item(), step)
+                writer.add_scalar("dynamic/loss_train_batch", loss.item(), step)
                 writer.add_scalar("dynamic/accuracy/train", dyn_metrics["accuracy"], step)
                 writer.add_scalar("dynamic/precision/train", dyn_metrics["precision"], step)
                 writer.add_scalar("dynamic/recall/train", dyn_metrics["recall"], step)
@@ -516,6 +517,7 @@ def train_one_epoch(
                 kin_metrics = metrics_kinetic_batch(kin_logits, targets_for_loss.get("kinetic_logits"), lengths, n_classes=K)
                 epoch_metrics["kinetic_logits"].append(kin_metrics)
                 step = epoch * len(training_loader) + i
+                writer.add_scalar("kinetic/loss_train_batch", loss.item(), step) # Repeated value
                 writer.add_scalar("kinetic/accuracy/train", kin_metrics["accuracy"], step)
                 writer.add_scalar("kinetic/macro_precision/train", kin_metrics["macro_precision"], step)
                 writer.add_scalar("kinetic/macro_recall/train", kin_metrics["macro_recall"], step)
@@ -527,6 +529,7 @@ def train_one_epoch(
                 freq_metrics = metrics_frequency_batch(outputs_for_loss["frequency_pred"], targets_for_loss.get("frequency_pred"), lengths)
                 epoch_metrics["frequency_pred"].append(freq_metrics)
                 step = epoch * len(training_loader) + i
+                writer.add_scalar("frequency/loss_training_batch", loss.item(), step) # Repeated value
                 writer.add_scalar("frequency/rmse/train", freq_metrics["rmse"], step)
 
             print(f"[Train] Epoch {epoch+1} batch {i+1}/{len(training_loader)} loss {loss.item():.6f}")
@@ -568,7 +571,9 @@ def compute_validation(
     val_batches = 0
     epoch_metrics = {h: [] for h in loss_heads}
 
-    with torch.no_grad():
+    autocast_enabled = (device == "cuda")
+
+    with torch.no_grad(), torch.autocast(device_type=device, dtype=torch.bfloat16, enabled=autocast_enabled):
         for i, data in enumerate(validation_loader):
             sequences, dyn, kin, freq, lengths = data
             structure = model.forward_from_seq(sequences)
@@ -577,7 +582,14 @@ def compute_validation(
                 structure, dyn, kin, freq, lengths, loss_heads, model.device, kin_class_weights
             )
 
-            kin_weights = kin_class_weights.to(model.device) if isinstance(kin_class_weights, torch.Tensor) else kin_class_weights
+             # ensure kin_class_weights in local device and correct dtype
+            kin_weights = None
+            if kin_class_weights is not None:
+                for h in loss_heads:
+                    if "kinetic_logits" in h and h in outputs_for_loss:
+                        logits_dtype = outputs_for_loss[h].dtype   # usually bfloat16 under autocast
+                        kin_weights = kin_class_weights.to(device=device, dtype=logits_dtype)
+                        break
 
             vloss = loss_mod.esmdynamic_loss(outputs_for_loss, targets_for_loss, lengths.to(model.device), active_heads=loss_heads, kin_class_weights=kin_weights, alpha=alpha, gamma=gamma)
             running_vloss += vloss.item()
@@ -633,6 +645,11 @@ def save_run_metadata(outpath, args, timestamp):
 
 
 def get_args():
+    import shlex
+
+    def parse_list(arg):
+        return shlex.split(arg.replace(",", " "))
+
     parser = argparse.ArgumentParser(fromfile_prefix_chars="@")
     parser.add_argument("--train_identifiers_file", type=str, required=True)
     parser.add_argument("--val_identifiers_file", type=str, required=True)
@@ -646,7 +663,7 @@ def get_args():
     parser.add_argument("--pretrained", type=str, default=None)
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--lr", type=float, default=1e-4)
-    parser.add_argument("--loss_heads", nargs="+", required=True, help="Loss heads to use (e.g. dynamic_logits kinetic_logits frequency_pred). Must match keys used by loss.esmdynamic_loss.")
+    parser.add_argument("--loss_heads", type=parse_list, default=[], required=True, help="Loss heads to use (e.g. dynamic_logits kinetic_logits frequency_pred). Must match keys used by loss.esmdynamic_loss.")
     parser.add_argument("--kin_class_weights", type=str, default=None, help="Optional path to torch-saved kinetics class weights (tensor shape [2,K])")
     parser.add_argument("--chunk_size", type=int, default=256)
     parser.add_argument("--alpha", type=float, default=0.25)

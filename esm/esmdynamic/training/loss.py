@@ -105,11 +105,11 @@ def loss_kinetic_logits(logits, labels, lengths, class_weights):
 
 def loss_kinetic_conf(conf_pred, conf_target, lengths):
     """
-    conf_pred: [B, n_conditions, n_rates, L]
+    conf_pred: [B, n_conditions, L]
     """
-    B, C, R, L = conf_pred.shape
+    B, C, L = conf_pred.shape
     mask = length_mask_1d(B, L, lengths, conf_pred.device)
-    mask = mask[:, None, None, :]  # [B,1,1,L]
+    mask = mask[:, None]  # [B,1,L]
 
     loss = (conf_pred - conf_target).pow(2)
     return (loss * mask).sum()
