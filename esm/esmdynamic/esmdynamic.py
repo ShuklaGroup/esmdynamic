@@ -4,9 +4,12 @@ ESMFold fine-tuning for dynamic contact prediction - Diego E. Kleiman (Shukla Gr
 import dataclasses
 import typing as T
 from dataclasses import dataclass, field
+import tempfile
 
+import numpy as np
 import torch
 import torch.nn as nn
+import mdtraj as md
 from omegaconf import OmegaConf
 
 import esm
@@ -354,6 +357,52 @@ class ESMDynamic(nn.Module):
         for head in self.heads.values():
             structure = head(structure, num_recycles=num_recycles)
 
+        # Get native contacts from ESMFold and find the set "dynamic - native"
+        if "dynamic" in self.heads:
+
+            struct_cpu = {
+                k: (
+                    v.float().cpu()
+                    if v.is_floating_point()
+                    else v.cpu()
+                )
+                for k, v in structure.items()
+                if isinstance(v, torch.Tensor)
+            }
+
+            structure["pdbs"] = self.esmfold.output_to_pdb(struct_cpu)
+
+            native_contacts_list = self.compute_native_contacts(structure["pdbs"])
+
+            dynamic_pred = structure["dynamic_pred"] 
+            B, N, L_dyn, _ = dynamic_pred.shape
+
+            native_contacts = torch.zeros(
+                (B, L_dyn, L_dyn),
+                dtype=torch.long,
+                device=self.device,
+            )
+
+            for b, native in enumerate(native_contacts_list):
+                L_nat = native.shape[0]
+
+                if L_nat > L_dyn:
+                    raise ValueError(
+                        f"Native contact map ({L_nat}) larger than dynamic L ({L_dyn})."
+                    )
+
+                native_contacts[b, :L_nat, :L_nat] = native
+
+            structure["native_contacts"] = native_contacts
+
+            # Broadcast across N
+            native_expanded = native_contacts.unsqueeze(1)
+
+            # dynamic AND NOT native
+            structure["dynamic_nonnative_contacts"] = (
+                dynamic_pred * (1 - native_expanded)
+            )
+
         return structure
 
     def forward_from_seq(
@@ -543,3 +592,40 @@ class ESMDynamic(nn.Module):
     @property
     def device(self):
         return self.dummy_buffer.device
+
+
+    def compute_native_contacts(self, pdb_strings, threshold=8.0):
+
+        contact_maps = []
+
+        for pdb_str in pdb_strings:
+
+            with tempfile.NamedTemporaryFile(mode="w+", suffix=".pdb") as tmp:
+                tmp.write(pdb_str)
+                tmp.flush()
+                traj = md.load(tmp.name)
+
+            distances_nm, residue_pairs = md.compute_contacts(
+                traj,
+                contacts="all",
+                scheme="ca",
+            )
+
+            distances_angstrom = distances_nm[0] * 10.0 # to angstroms
+            n_residues = traj.n_residues
+
+            contact_matrix = np.zeros((n_residues, n_residues), dtype=np.int64)
+
+            contact_mask = distances_angstrom < threshold
+            contacting_pairs = residue_pairs[contact_mask]
+
+            contact_matrix[contacting_pairs[:, 0], contacting_pairs[:, 1]] = 1
+            contact_matrix[contacting_pairs[:, 1], contacting_pairs[:, 0]] = 1
+
+            np.fill_diagonal(contact_matrix, 0)
+
+            contact_maps.append(
+                torch.tensor(contact_matrix, dtype=torch.int64, device=self.device)
+            )
+
+        return contact_maps
