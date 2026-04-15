@@ -357,7 +357,7 @@ class ESMDynamic(nn.Module):
         for head in self.heads.values():
             structure = head(structure, num_recycles=num_recycles)
 
-        # Get native contacts from ESMFold and find the set "dynamic - native"
+        # Get native contacts from ESMFold and find the set "dynamic - native" and "native - dynamic"
         if "dynamic" in self.heads:
 
             struct_cpu = {
@@ -401,6 +401,11 @@ class ESMDynamic(nn.Module):
             # dynamic AND NOT native
             structure["dynamic_nonnative_contacts"] = (
                 dynamic_pred * (1 - native_expanded)
+            )
+
+            # native AND NOT dynamic
+            structure["native_nondynamic_contacts"] = (
+                native_expanded * (1 - dynamic_pred)
             )
 
         return structure
