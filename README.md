@@ -120,9 +120,9 @@ To recreate the dynamic contact maps in our publication, use either of the files
 run_esmdynamic --csv example.csv --output_dir example
 ```
 
-The output directory will contain the numerical output for each sequence in a plain text file that can be easily read by `numpy.loadtxt`. A PNG image and a HTML-based visualization file are also provided.
+To interpret the output, please see next section.
 
-Depending on your system's memory, you may change the default values for `batch_size` or `chunk_size` to trade off between speed and VRAM.
+Depending on your system's memory, you may change the default values for `--batch_size` or `--chunk_size` to trade off between speed and VRAM. You may also experiment with the `--low_memory` flag, which runs each head sequentially instead of in parallel, but this is considerably slower.
 
 ### Output Interpretation <a name="output"></a>
 
