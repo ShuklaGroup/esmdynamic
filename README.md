@@ -1,7 +1,7 @@
 # ESMDynamic
 [![bioRxiv](https://img.shields.io/badge/bioRxiv-Preprint-red)](https://www.biorxiv.org/content/10.1101/2025.08.20.671365v1)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ShuklaGroup/esmdynamic/blob/main/examples/esmdynamic/esmdynamic.ipynb)
-[![Download Data](https://img.shields.io/badge/ILLINOIS-Data_Bank-black?labelColor=FF5F05&color=13294B)](https://doi.org/10.13012/B2IDB-3773897_V1)
+[![Download Data](https://img.shields.io/badge/ILLINOIS-Data_Bank-black?labelColor=FF5F05&color=13294B)](https://doi.org/10.13012/B2IDB-3773897_V2)
 
 
 This is the code repository for [ESMDynamic: Fast and Accurate Prediction of Protein Dynamic Contact Maps from Single Sequences](https://www.biorxiv.org/content/10.1101/2025.08.20.671365v1).
@@ -17,10 +17,12 @@ This repository is based on [Evolutionary Scale Modeling](https://github.com/fac
     	- [Docker](#install-docker)
     	- [Conda](#install-conda)
   - [Bulk Prediction](#bulkprediction)
+  - [Output Interpretation](#output)
   - [Visualization](#visualization)
 - [Available Models and Datasets](#available)
   - [Pretrained Model](#available-model)
   - [Datasets](#available-datatsets)
+  - [Human Proteome](#proteome)
 - [Training](#training)
 - [Citations](#citations)
 - [License](#license)
@@ -81,10 +83,10 @@ run_esmdynamic -h # Print docs, will download weights when needed
 The [`predict.py`](esm/esmdynamic/predict.py) script is the implementation for the executable `run_esmdynamic`. These are the docs:
 
 ```
-usage: predict.py [-h] (--sequence SEQUENCE | --fasta FASTA | --csv CSV) [--batch_size BATCH_SIZE] [--chunk_size CHUNK_SIZE] [--device {cpu,cuda}] [--output_dir OUTPUT_DIR]
-               [--chain_ids CHAIN_IDS]
+usage: run_esmdynamic [-h] (--sequence SEQUENCE | --fasta FASTA | --csv CSV) [--batch_size BATCH_SIZE] [--chunk_size CHUNK_SIZE] [--device {cpu,cuda}] [--output_dir OUTPUT_DIR]
+                      [--chain_ids CHAIN_IDS] [--low_memory] [--save_html] [--save_png] [--save_txt] [--save_raw_pt] [--num_recycles NUM_RECYCLES]
 
-Predict dynamic contacts using ESMDynamic.
+Predict dynamic contacts, frequency, and kinetics using ESMDynamic.
 
 options:
   -h, --help            show this help message and exit
@@ -92,17 +94,24 @@ options:
   --fasta FASTA         Path to FASTA file with sequences.
   --csv CSV             CSV file with sequences (first column ID, second column sequence).
   --batch_size BATCH_SIZE
-                        Batch size (default 1).
+                        Batch size.
   --chunk_size CHUNK_SIZE
-                        Model chunk size (default 256).
-  --device {cpu,cuda}   Device (default: cuda).
+                        Model chunk size.
+  --device {cpu,cuda}   Device to use.
   --output_dir OUTPUT_DIR
-                        Output directory.
+                        Directory where outputs will be written.
   --chain_ids CHAIN_IDS
-                        Chain IDs to use (e.g., 'ABCDEF'). Default: A-Z.
+                        Chain IDs to use for labels (e.g. ABCDEF). Default: A-Z.
+  --low_memory          Use low-memory inference mode.
+  --save_html           Also save interactive HTML heatmaps.
+  --save_png            Save PNG heatmaps/plots.
+  --save_txt            Save text/CSV outputs.
+  --save_raw_pt         Save a .pt bundle with all cropped outputs for each sequence.
+  --num_recycles NUM_RECYCLES
+                        Optional number of recycles to pass to the model.
 ```
 
-With FASTA file input, the headers will be used as IDs. With CSV input, the first row are headers, the first column contains IDs, and the second column contains the sequences.
+With FASTA file input, the headers will be used as protein IDs. With CSV input, the first row are column headers, the first column contains protein IDs, and the second column contains the protein sequences.
 
 Use `:` to separate chains (unless using the Colab Notebook, then use `/`).
 
@@ -115,6 +124,10 @@ run_esmdynamic --csv example.csv --output_dir example
 The output directory will contain the numerical output for each sequence in a plain text file that can be easily read by `numpy.loadtxt`. A PNG image and a HTML-based visualization file are also provided.
 
 Depending on your system's memory, you may change the default values for `batch_size` or `chunk_size` to trade off between speed and VRAM.
+
+### Output Interpretation <a name="output"></a>
+
+For a detailed breakdown of model outputs, please read our accompanying documentation: [ESMDynamic Output Interpretation](output_interpretation.md)
 
 ### Visualization <a name="visualization"></a>
 
@@ -157,6 +170,10 @@ python esm/esmdynamic/training/convert_csv_to_torch.py mdcath/
 
 > [!WARNING]  
 > RCSB dataset expands into a large directory (>20 GB).
+
+## Human Proteome <a name="proteome"></a>
+
+Explain how to access human proteome predictions here...
 
 # Training <a name="training"></a>
 
