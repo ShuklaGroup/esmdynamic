@@ -151,25 +151,16 @@ Weights will be found in the path given by `torch.hub.get_dir()`.
 
 ## Datasets <a name="available-datatsets"></a>
 
-Three datasets are available at [DOI:10.13012/B2IDB-3773897_V2](https://doi.org/10.13012/B2IDB-3773897_V2). Follow the instructions in the README at the [Data Bank](https://doi.org/10.13012/B2IDB-3773897_V2) (reproduced below) to convert the files to the format needed for training. Each directory contains information about the data splits (list of identifiers in CSV format) and the weigths used for sampling during training (`.pt` format).
+Three datasets are available at [DOI:10.13012/B2IDB-3773897_V2](https://doi.org/10.13012/B2IDB-3773897_V2). Follow the instructions in the README at the [Data Bank](https://doi.org/10.13012/B2IDB-3773897_V2) to convert the files to the format needed for training. Each directory contains information about the data splits (list of identifiers in CSV format).
 
 | Dataset Name      | Original Data Source                                                           | Related Publication |
 |-------------------|--------------------------------------------------------------------------------|---------------------|
-| [ATLAS (Test Set)](https://databank.illinois.edu/datafiles/kennn/download)  | [ATLAS Database](https://www.dsimb.inserm.fr/ATLAS)                            | [ATLAS](https://doi.org/10.1093/nar/gkad1084) |
-| [mdCATH](https://databank.illinois.edu/datafiles/qacyy/download)            | [mdCATH Dataset](https://huggingface.co/datasets/compsciencelab/mdCATH)        | [mdCATH](https://www.nature.com/articles/s41597-024-04140-z) |
-| [RCSB Clusters](https://databank.illinois.edu/datafiles/485qm/download)     | [RCSB](https://www.rcsb.org/)                                                   | [RCSB](https://www.frontiersin.org/journals/bioinformatics/articles/10.3389/fbinf.2023.1311287/full)                 |
-
-After downloading a `.zip` file, prepare the data:
-
-```bash
-unzip mdcath.zip # Change name as needed
-cd mdcath
-tar -xvf mdcath.tar.gz
-python esm/esmdynamic/training/convert_csv_to_torch.py mdcath/
-```
+| [ATLAS (Test Set)](https://databank.illinois.edu/datafiles/2lewl/download)  | [ATLAS Database](https://www.dsimb.inserm.fr/ATLAS)                            | [ATLAS](https://doi.org/10.1093/nar/gkad1084) |
+| [mdCATH](https://databank.illinois.edu/datafiles/wdn8k/download)            | [mdCATH Dataset](https://huggingface.co/datasets/compsciencelab/mdCATH)        | [mdCATH](https://www.nature.com/articles/s41597-024-04140-z) |
+| [RCSB Clusters](https://databank.illinois.edu/datafiles/97ijo/download)     | [RCSB](https://www.rcsb.org/)                                                   | [RCSB](https://www.frontiersin.org/journals/bioinformatics/articles/10.3389/fbinf.2023.1311287/full)                 |
 
 > [!WARNING]  
-> RCSB dataset expands into a large directory (>20 GB).
+> Datasets expand into large directories (>20 GB).
 
 ## Human Proteome <a name="proteome"></a>
 
@@ -177,23 +168,25 @@ You can access predictions for most of the proteins in the human proteome (UniPr
 
 # Training <a name="training"></a>
 
-First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897_V2](https://doi.org/10.13012/B2IDB-3773897_V2) following the README from the Data Bank (or see instructions above). Then, you can use the [`train.py`](esm/esmdynamic/training/train.py) script from this repository. You will need to write a file with training parameters, named something like `train_params.txt`, for example:
+These instructions apply for the training on mdCATH. First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897_V2](https://doi.org/10.13012/B2IDB-3773897_V2) following the README from the Data Bank. Then, you can use the [`train.py`](esm/esmdynamic/training/train.py) script from this repository. You will need to write a file with training parameters, named something like `train_params.txt`, for example (to fit the kinetics heads only):
 
 ```
---train_identifiers_file=./mdcath/train.csv
---val_identifiers_file=./mdcath/val.csv
---train_weights_file=./mdcath/train_weights.pt
---val_weights_file=./mdcath/val_weights.pt
---data_dir=./mdcath/mdcath/
---outpath=./train_output/
+--loss_heads=kinetic_logits,kinetic_confidence
+--kin_class_weights=kinetic_weights.pt # Class weights, bundled with dataset
+--train_identifiers_file=train.csv
+--val_identifiers_file=val.csv
+--data_dir=./mdcath/
+--outpath=./training_data_kinetics
 --batch_size=4
---batch_accum=16 # 4*16 = 64 effective batch size
---epochs=1000
+--batch_accum=16
+--epochs=100
 --train_samples_per_epoch=1000
 --val_samples_per_epoch=100
---weight_positive=0.85
---decay_rate=2
---pretrained=checkpoint.pt # Path to a full state dict
+--alpha=0.85
+--gamma=2
+--device=cuda
+--lr=0.001
+--pretrained=previous_weights_kinetics.pt # Path to a full state dict
 ```
 
 Then, training can be run with:
