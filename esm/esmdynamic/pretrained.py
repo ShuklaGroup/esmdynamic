@@ -8,7 +8,7 @@ def _load_model(model_name, model_object=ESMDynamic):
         model_path = Path(model_name)
         model_data = torch.load(str(model_path), map_location="cpu")
     else:  # load from data repository, if file exists it won't redownload
-        url = "https://databank.illinois.edu/datafiles/jx4ui/download"
+        url = "https://databank.illinois.edu/datafiles/7odsk/download"
         model_data = torch.hub.load_state_dict_from_url(url, progress=True, file_name=f"{model_name}.pt", map_location="cpu")
 
     model = model_object()

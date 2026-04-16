@@ -140,7 +140,7 @@ If you use the [`run_esmdynamic`](esm/esmdynamic/predict.py) script or the [Cola
 
 ## Pretrained Model <a name="available-model"></a>
 
-The ESMDynamic model weights are available at the Illinois Data Bank under [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Note you must still obtain the ESMFold weights to run the model. A simple way to download the weights is with:
+The ESMDynamic model weights are available at the Illinois Data Bank under [DOI:10.13012/B2IDB-3773897_V2](https://doi.org/10.13012/B2IDB-3773897_V2). Note you must still obtain the ESMFold weights to run the model. A simple way to download the weights is with:
 
 ```python
 import esm
@@ -151,7 +151,7 @@ Weights will be found in the path given by `torch.hub.get_dir()`.
 
 ## Datasets <a name="available-datatsets"></a>
 
-Three datasets are available at [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Follow the instructions in the README at the [Data Bank](https://doi.org/10.13012/B2IDB-3773897_V1) (reproduced below) to convert the files to the format needed for training. Each directory contains information about the data splits (list of identifiers in CSV format) and the weigths used for sampling during training (`.pt` format).
+Three datasets are available at [DOI:10.13012/B2IDB-3773897_V2](https://doi.org/10.13012/B2IDB-3773897_V2). Follow the instructions in the README at the [Data Bank](https://doi.org/10.13012/B2IDB-3773897_V2) (reproduced below) to convert the files to the format needed for training. Each directory contains information about the data splits (list of identifiers in CSV format) and the weigths used for sampling during training (`.pt` format).
 
 | Dataset Name      | Original Data Source                                                           | Related Publication |
 |-------------------|--------------------------------------------------------------------------------|---------------------|
@@ -173,11 +173,11 @@ python esm/esmdynamic/training/convert_csv_to_torch.py mdcath/
 
 ## Human Proteome <a name="proteome"></a>
 
-Explain how to access human proteome predictions here...
+You can access predictions for most of the proteins in the human proteome (UniProt Proteome ID UP000005640) on the [data repository](https://doi.org/10.13012/B2IDB-3773897_V2). See this [table](https://databank.illinois.edu/datafiles/yy1re/download) to find what archive fragment contains the predictions you need.
 
 # Training <a name="training"></a>
 
-First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1) following the README from the Data Bank (or see instructions above). Then, you can use the [`train.py`](esm/esmdynamic/training/train.py) script from this repository. You will need to write a file with training parameters, named something like `train_params.txt`, for example:
+First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897_V2](https://doi.org/10.13012/B2IDB-3773897_V2) following the README from the Data Bank (or see instructions above). Then, you can use the [`train.py`](esm/esmdynamic/training/train.py) script from this repository. You will need to write a file with training parameters, named something like `train_params.txt`, for example:
 
 ```
 --train_identifiers_file=./mdcath/train.csv
