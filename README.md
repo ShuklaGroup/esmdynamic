@@ -1,13 +1,13 @@
 # ESMDynamic
 [![bioRxiv](https://img.shields.io/badge/bioRxiv-Preprint-red)](https://www.biorxiv.org/content/10.1101/2025.08.20.671365v1)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ShuklaGroup/esmdynamic/blob/main/examples/esmdynamic/esmdynamic.ipynb)
-[![Download Data](https://img.shields.io/badge/ILLINOIS-Data_Bank-black?labelColor=FF5F05&color=13294B)](https://doi.org/10.13012/B2IDB-3773897_V1)
+[![Download Data](https://img.shields.io/badge/ILLINOIS-Data_Bank-black?labelColor=FF5F05&color=13294B)](https://doi.org/10.13012/B2IDB-3773897_V2)
 
 
 This is the code repository for [ESMDynamic: Fast and Accurate Prediction of Protein Dynamic Contact Maps from Single Sequences](https://www.biorxiv.org/content/10.1101/2025.08.20.671365v1).
 This repository is based on [Evolutionary Scale Modeling](https://github.com/facebookresearch/esm), which has been archived.
 
-![model](model_scheme.png)
+![model](model_scheme.png?v=2)
 
 <details close><summary><b>Table of contents</b></summary>
 
@@ -17,10 +17,12 @@ This repository is based on [Evolutionary Scale Modeling](https://github.com/fac
     	- [Docker](#install-docker)
     	- [Conda](#install-conda)
   - [Bulk Prediction](#bulkprediction)
+  - [Output Interpretation](#output)
   - [Visualization](#visualization)
 - [Available Models and Datasets](#available)
   - [Pretrained Model](#available-model)
   - [Datasets](#available-datatsets)
+  - [Human Proteome](#proteome)
 - [Training](#training)
 - [Citations](#citations)
 - [License](#license)
@@ -56,17 +58,16 @@ run_esmdynamic -h # Print help for prediction script
 
 #### Conda <a name="install-conda"></a>
 
-Install [Conda](https://www.anaconda.com/docs/getting-started/miniconda/install) if not available. Create an environment and install packages (this is using Python 3.11, CUDA 12.6, torch 2.7.1).
+Install [Conda](https://www.anaconda.com/docs/getting-started/miniconda/install) if not available. Create an environment and install packages (this is using Python 3.11, CUDA 12.9, torch 2.8.0).
 
 ```bash
 conda create -n esmdynamic python=3.11.13
 conda activate esmdynamic
-conda install nvidia/label/cuda-12.6.3::cuda-nvcc # If you don't have nvcc
-conda install -c nvidia cuda-toolkit 
-pip3 install torch torchvision torchaudio # Should give 2.7.1+cu126
-pip install scipy omegaconf pytorch_lightning biopython ml_collections einops py3Dmol modelcif matplotlib plotly[express] dm-tree tensorboard
-pip install git+https://github.com/NVIDIA/dllogger.git
-pip install git+https://github.com/sokrypton/openfold.git # Use the ColabFold fork!
+conda install -c nvidia cuda-nvcc=12.9.86 cuda-toolkit=12.9.1
+pip install torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu129
+pip3 install mdtraj scipy omegaconf pytorch_lightning biopython ml_collections einops py3Dmol modelcif matplotlib plotly[express] dm-tree tensorboard
+pip3 install git+https://github.com/NVIDIA/dllogger.git
+pip3 install --no-build-isolation 'git+https://github.com/sokrypton/openfold.git' # Use the ColabFold fork!
 pip install git+https://github.com/ShuklaGroup/esmdynamic.git
 ```
 
@@ -81,10 +82,10 @@ run_esmdynamic -h # Print docs, will download weights when needed
 The [`predict.py`](esm/esmdynamic/predict.py) script is the implementation for the executable `run_esmdynamic`. These are the docs:
 
 ```
-usage: predict.py [-h] (--sequence SEQUENCE | --fasta FASTA | --csv CSV) [--batch_size BATCH_SIZE] [--chunk_size CHUNK_SIZE] [--device {cpu,cuda}] [--output_dir OUTPUT_DIR]
-               [--chain_ids CHAIN_IDS]
+usage: run_esmdynamic [-h] (--sequence SEQUENCE | --fasta FASTA | --csv CSV) [--batch_size BATCH_SIZE] [--chunk_size CHUNK_SIZE] [--device {cpu,cuda}] [--output_dir OUTPUT_DIR]
+                      [--chain_ids CHAIN_IDS] [--low_memory] [--save_html] [--save_png] [--save_txt] [--save_raw_pt] [--num_recycles NUM_RECYCLES]
 
-Predict dynamic contacts using ESMDynamic.
+Predict dynamic contacts, frequency, and kinetics using ESMDynamic.
 
 options:
   -h, --help            show this help message and exit
@@ -92,17 +93,24 @@ options:
   --fasta FASTA         Path to FASTA file with sequences.
   --csv CSV             CSV file with sequences (first column ID, second column sequence).
   --batch_size BATCH_SIZE
-                        Batch size (default 1).
+                        Batch size.
   --chunk_size CHUNK_SIZE
-                        Model chunk size (default 256).
-  --device {cpu,cuda}   Device (default: cuda).
+                        Model chunk size.
+  --device {cpu,cuda}   Device to use.
   --output_dir OUTPUT_DIR
-                        Output directory.
+                        Directory where outputs will be written.
   --chain_ids CHAIN_IDS
-                        Chain IDs to use (e.g., 'ABCDEF'). Default: A-Z.
+                        Chain IDs to use for labels (e.g. ABCDEF). Default: A-Z.
+  --low_memory          Use low-memory inference mode.
+  --save_html           Also save interactive HTML heatmaps.
+  --save_png            Save PNG heatmaps/plots.
+  --save_txt            Save text/CSV outputs.
+  --save_raw_pt         Save a .pt bundle with all cropped outputs for each sequence.
+  --num_recycles NUM_RECYCLES
+                        Optional number of recycles to pass to the model.
 ```
 
-With FASTA file input, the headers will be used as IDs. With CSV input, the first row are headers, the first column contains IDs, and the second column contains the sequences.
+With FASTA file input, the headers will be used as protein IDs. With CSV input, the first row are column headers, the first column contains protein IDs, and the second column contains the protein sequences.
 
 Use `:` to separate chains (unless using the Colab Notebook, then use `/`).
 
@@ -112,13 +120,17 @@ To recreate the dynamic contact maps in our publication, use either of the files
 run_esmdynamic --csv example.csv --output_dir example
 ```
 
-The output directory will contain the numerical output for each sequence in a plain text file that can be easily read by `numpy.loadtxt`. A PNG image and a HTML-based visualization file are also provided.
+To interpret the output, please see next section.
 
-Depending on your system's memory, you may change the default values for `batch_size` or `chunk_size` to trade off between speed and VRAM.
+Depending on your system's memory, you may change the default values for `--batch_size` or `--chunk_size` to trade off between speed and VRAM. You may also experiment with the `--low_memory` flag, which runs each head sequentially instead of in parallel, but this is considerably slower.
+
+### Output Interpretation <a name="output"></a>
+
+For a detailed breakdown of model outputs, please read our accompanying documentation: [ESMDynamic Output Interpretation](output_interpretation.md)
 
 ### Visualization <a name="visualization"></a>
 
-If you use the [`run_esmdynamic`](esm/esmdynamic/predict.py) script or the [Colab Notebook](https://colab.research.google.com/github/ShuklaGroup/esmdynamic/blob/main/examples/esmdynamic/esmdynamic.ipynb), you will obtain an interactive HTML file that makes visualization easier. Open the file with a browser. Functionality includes zooming in and creating screen captures.
+If you use the [`run_esmdynamic`](esm/esmdynamic/predict.py) script or the [Colab Notebook](https://colab.research.google.com/github/ShuklaGroup/esmdynamic/blob/main/examples/esmdynamic/esmdynamic.ipynb), you will obtain interactive HTML files that make visualization easier. Open the file(s) with a browser. Functionality includes zooming in and creating screen captures.
 
 ![viz](viz_plotly.gif)
 
@@ -127,7 +139,7 @@ If you use the [`run_esmdynamic`](esm/esmdynamic/predict.py) script or the [Cola
 
 ## Pretrained Model <a name="available-model"></a>
 
-The ESMDynamic model weights are available at the Illinois Data Bank under [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Note you must still obtain the ESMFold weights to run the model. A simple way to download the weights is with:
+The ESMDynamic model weights are available at the Illinois Data Bank under [DOI:10.13012/B2IDB-3773897_V2](https://doi.org/10.13012/B2IDB-3773897_V2). Note you must still obtain the ESMFold weights to run the model. A simple way to download the weights is with:
 
 ```python
 import esm
@@ -138,45 +150,42 @@ Weights will be found in the path given by `torch.hub.get_dir()`.
 
 ## Datasets <a name="available-datatsets"></a>
 
-Three datasets are available at [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1). Follow the instructions in the README at the [Data Bank](https://doi.org/10.13012/B2IDB-3773897_V1) (reproduced below) to convert the files to the format needed for training. Each directory contains information about the data splits (list of identifiers in CSV format) and the weigths used for sampling during training (`.pt` format).
+Three datasets are available at [DOI:10.13012/B2IDB-3773897_V2](https://doi.org/10.13012/B2IDB-3773897_V2). Follow the instructions in the README at the [Data Bank](https://doi.org/10.13012/B2IDB-3773897_V2) to convert the files to the format needed for training. Each directory contains information about the data splits (list of identifiers in CSV format).
 
 | Dataset Name      | Original Data Source                                                           | Related Publication |
 |-------------------|--------------------------------------------------------------------------------|---------------------|
-| [ATLAS (Test Set)](https://databank.illinois.edu/datafiles/kennn/download)  | [ATLAS Database](https://www.dsimb.inserm.fr/ATLAS)                            | [ATLAS](https://doi.org/10.1093/nar/gkad1084) |
-| [mdCATH](https://databank.illinois.edu/datafiles/qacyy/download)            | [mdCATH Dataset](https://huggingface.co/datasets/compsciencelab/mdCATH)        | [mdCATH](https://www.nature.com/articles/s41597-024-04140-z) |
-| [RCSB Clusters](https://databank.illinois.edu/datafiles/485qm/download)     | [RCSB](https://www.rcsb.org/)                                                   | [RCSB](https://www.frontiersin.org/journals/bioinformatics/articles/10.3389/fbinf.2023.1311287/full)                 |
-
-After downloading a `.zip` file, prepare the data:
-
-```bash
-unzip mdcath.zip # Change name as needed
-cd mdcath
-tar -xvf mdcath.tar.gz
-python esm/esmdynamic/training/convert_csv_to_torch.py mdcath/
-```
+| [ATLAS (Test Set)](https://databank.illinois.edu/datafiles/2lewl/download)  | [ATLAS Database](https://www.dsimb.inserm.fr/ATLAS)                            | [ATLAS](https://doi.org/10.1093/nar/gkad1084) |
+| [mdCATH](https://databank.illinois.edu/datafiles/wdn8k/download)            | [mdCATH Dataset](https://huggingface.co/datasets/compsciencelab/mdCATH)        | [mdCATH](https://www.nature.com/articles/s41597-024-04140-z) |
+| [RCSB Clusters](https://databank.illinois.edu/datafiles/97ijo/download)     | [RCSB](https://www.rcsb.org/)                                                   | [RCSB](https://www.frontiersin.org/journals/bioinformatics/articles/10.3389/fbinf.2023.1311287/full)                 |
 
 > [!WARNING]  
-> RCSB dataset expands into a large directory (>20 GB).
+> Datasets expand into large directories (>20 GB).
+
+## Human Proteome <a name="proteome"></a>
+
+You can access predictions for most of the proteins in the human proteome (UniProt Proteome ID UP000005640) on the [data repository](https://doi.org/10.13012/B2IDB-3773897_V2). See this [table](https://databank.illinois.edu/datafiles/yy1re/download) to find what archive fragment contains the predictions you need.
 
 # Training <a name="training"></a>
 
-First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897_V1](https://doi.org/10.13012/B2IDB-3773897_V1) following the README from the Data Bank (or see instructions above). Then, you can use the [`train.py`](esm/esmdynamic/training/train.py) script from this repository. You will need to write a file with training parameters, named something like `train_params.txt`, for example:
+These instructions apply for the training on mdCATH. First download and convert the required dataset from [DOI:10.13012/B2IDB-3773897_V2](https://doi.org/10.13012/B2IDB-3773897_V2) following the README from the Data Bank. Then, you can use the [`train.py`](esm/esmdynamic/training/train.py) script from this repository. You will need to write a file with training parameters, named something like `train_params.txt`, for example (to fit the kinetics heads only):
 
 ```
---train_identifiers_file=./mdcath/train.csv
---val_identifiers_file=./mdcath/val.csv
---train_weights_file=./mdcath/train_weights.pt
---val_weights_file=./mdcath/val_weights.pt
---data_dir=./mdcath/mdcath/
---outpath=./train_output/
+--loss_heads=kinetic_logits,kinetic_confidence
+--kin_class_weights=kinetic_weights.pt # Class weights, bundled with dataset
+--train_identifiers_file=train.csv
+--val_identifiers_file=val.csv
+--data_dir=./mdcath/
+--outpath=./training_data_kinetics
 --batch_size=4
---batch_accum=16 # 4*16 = 64 effective batch size
---epochs=1000
+--batch_accum=16
+--epochs=100
 --train_samples_per_epoch=1000
 --val_samples_per_epoch=100
---weight_positive=0.85
---decay_rate=2
---pretrained=checkpoint.pt # Path to a full state dict
+--alpha=0.85
+--gamma=2
+--device=cuda
+--lr=0.001
+--pretrained=previous_weights_kinetics.pt # Path to a full state dict
 ```
 
 Then, training can be run with:
