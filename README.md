@@ -7,7 +7,7 @@
 This is the code repository for [ESMDynamic: Fast and Accurate Prediction of Protein Dynamic Contact Maps from Single Sequences](https://www.biorxiv.org/content/10.1101/2025.08.20.671365v1).
 This repository is based on [Evolutionary Scale Modeling](https://github.com/facebookresearch/esm), which has been archived.
 
-![model](model_scheme.png)
+![model](model_scheme.png?v=2)
 
 <details close><summary><b>Table of contents</b></summary>
 
@@ -58,17 +58,16 @@ run_esmdynamic -h # Print help for prediction script
 
 #### Conda <a name="install-conda"></a>
 
-Install [Conda](https://www.anaconda.com/docs/getting-started/miniconda/install) if not available. Create an environment and install packages (this is using Python 3.11, CUDA 12.6, torch 2.7.1).
+Install [Conda](https://www.anaconda.com/docs/getting-started/miniconda/install) if not available. Create an environment and install packages (this is using Python 3.11, CUDA 12.9, torch 2.8.0).
 
 ```bash
 conda create -n esmdynamic python=3.11.13
 conda activate esmdynamic
-conda install nvidia/label/cuda-12.6.3::cuda-nvcc # If you don't have nvcc
-conda install -c nvidia cuda-toolkit 
-pip3 install torch torchvision torchaudio # Should give 2.7.1+cu126
-pip install scipy omegaconf pytorch_lightning biopython ml_collections einops py3Dmol modelcif matplotlib plotly[express] dm-tree tensorboard
-pip install git+https://github.com/NVIDIA/dllogger.git
-pip install git+https://github.com/sokrypton/openfold.git # Use the ColabFold fork!
+conda install -c nvidia cuda-nvcc=12.9.86 cuda-toolkit=12.9.1
+pip install torch==2.8.0 torchvision==0.23.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu129
+pip3 install scipy omegaconf pytorch_lightning biopython ml_collections einops py3Dmol modelcif matplotlib plotly[express] dm-tree tensorboard
+pip3 install git+https://github.com/NVIDIA/dllogger.git
+pip3 install --no-build-isolation 'git+https://github.com/sokrypton/openfold.git' # Use the ColabFold fork!
 pip install git+https://github.com/ShuklaGroup/esmdynamic.git
 ```
 
