@@ -18,7 +18,7 @@ def _load_model(model_name, model_object=ESMDynamic):
 
     missing_essential_keys = []
     for missing_key in expected_keys - found_keys:
-        if not missing_key.startswith("esmfold."):
+        if not (missing_key.startswith("esmfold.") or missing_key.startswith("dummy")):
             missing_essential_keys.append(missing_key)
 
     if missing_essential_keys:
