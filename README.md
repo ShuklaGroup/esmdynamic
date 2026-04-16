@@ -131,7 +131,7 @@ For a detailed breakdown of model outputs, please read our accompanying document
 
 ### Visualization <a name="visualization"></a>
 
-If you use the [`run_esmdynamic`](esm/esmdynamic/predict.py) script or the [Colab Notebook](https://colab.research.google.com/github/ShuklaGroup/esmdynamic/blob/main/examples/esmdynamic/esmdynamic.ipynb), you will obtain an interactive HTML file that makes visualization easier. Open the file with a browser. Functionality includes zooming in and creating screen captures.
+If you use the [`run_esmdynamic`](esm/esmdynamic/predict.py) script or the [Colab Notebook](https://colab.research.google.com/github/ShuklaGroup/esmdynamic/blob/main/examples/esmdynamic/esmdynamic.ipynb), you will obtain interactive HTML files that make visualization easier. Open the file(s) with a browser. Functionality includes zooming in and creating screen captures.
 
 ![viz](viz_plotly.gif)
 
